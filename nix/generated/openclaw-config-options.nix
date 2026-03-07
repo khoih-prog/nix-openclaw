@@ -1,4 +1,4 @@
-# Generated from upstream OpenClaw schema at rev bdd0f74188bfae6b4fa7da94697a999730570849. DO NOT EDIT.
+# Generated from upstream OpenClaw schema at rev 43ab4f33ad63422b92d9e6e6553f8400e2686a43. DO NOT EDIT.
 # Generator: nix/scripts/generate-config-options.ts
 { lib }:
 let
@@ -355,6 +355,10 @@ in
             default = null;
           };
         }; });
+          default = null;
+        };
+        recentTurnsPreserve = lib.mkOption {
+          type = t.nullOr (t.int);
           default = null;
         };
         reserveTokens = lib.mkOption {
