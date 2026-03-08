@@ -1,4 +1,4 @@
-# Generated from upstream OpenClaw schema at rev eb0758e1722c05e4c6cb359ae8983cf5cf372c45. DO NOT EDIT.
+# Generated from upstream OpenClaw schema at rev 6ff7e8f42ee9c8efb7f38eaf73e70a9dead4ca98. DO NOT EDIT.
 # Generator: nix/scripts/generate-config-options.ts
 { lib }:
 let
@@ -12669,6 +12669,10 @@ in
     }; }));
       default = null;
     };
+    silenceTimeoutMs = lib.mkOption {
+      type = t.nullOr (t.int);
+      default = null;
+    };
     voiceAliases = lib.mkOption {
       type = t.nullOr (t.attrsOf (t.str));
       default = null;
@@ -13879,6 +13883,15 @@ in
             type = t.enum [ "exec" ];
           };
         }; }) ]) ]);
+          default = null;
+        };
+        brave = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          mode = lib.mkOption {
+            type = t.nullOr (t.oneOf [ (t.enum [ "web" ]) (t.enum [ "llm-context" ]) ]);
+            default = null;
+          };
+        }; });
           default = null;
         };
         cacheTtlMinutes = lib.mkOption {
