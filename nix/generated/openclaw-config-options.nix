@@ -1,4 +1,4 @@
-# Generated from upstream OpenClaw schema at rev 2f7e548a57e6395b12cc73e48fbe9a418e87420c. DO NOT EDIT.
+# Generated from upstream OpenClaw schema at rev 8aaafa045a5c0b580e52961455fc269f728bb47c. DO NOT EDIT.
 # Generator: nix/scripts/generate-config-options.ts
 { lib }:
 let
@@ -521,6 +521,10 @@ in
           default = null;
         };
         includeReasoning = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+        isolatedSession = lib.mkOption {
           type = t.nullOr (t.bool);
           default = null;
         };
@@ -1305,6 +1309,10 @@ in
           default = null;
         };
         includeReasoning = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+        isolatedSession = lib.mkOption {
           type = t.nullOr (t.bool);
           default = null;
         };
@@ -2695,6 +2703,15 @@ in
         }; }));
           default = null;
         };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
+          default = null;
+        };
         heartbeat = lib.mkOption {
           type = t.nullOr (t.submodule { options = {
           showAlerts = lib.mkOption {
@@ -2954,6 +2971,15 @@ in
           default = null;
         };
       }; }));
+        default = null;
+      };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
         default = null;
       };
       heartbeat = lib.mkOption {
@@ -3543,6 +3569,15 @@ in
             default = null;
           };
         }; }));
+          default = null;
+        };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
           default = null;
         };
         heartbeat = lib.mkOption {
@@ -4544,6 +4579,15 @@ in
       }; }));
         default = null;
       };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
       heartbeat = lib.mkOption {
         type = t.nullOr (t.submodule { options = {
         showAlerts = lib.mkOption {
@@ -5216,6 +5260,15 @@ in
         }; }));
           default = null;
         };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
+          default = null;
+        };
         historyLimit = lib.mkOption {
           type = t.nullOr (t.int);
           default = null;
@@ -5472,6 +5525,15 @@ in
       }; }));
         default = null;
       };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
       historyLimit = lib.mkOption {
         type = t.nullOr (t.int);
         default = null;
@@ -5720,6 +5782,15 @@ in
         }; }));
           default = null;
         };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
+          default = null;
+        };
         heartbeat = lib.mkOption {
           type = t.nullOr (t.submodule { options = {
           showAlerts = lib.mkOption {
@@ -5916,6 +5987,15 @@ in
           default = null;
         };
       }; }));
+        default = null;
+      };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
         default = null;
       };
       heartbeat = lib.mkOption {
@@ -6122,6 +6202,15 @@ in
             default = null;
           };
         }; }));
+          default = null;
+        };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
           default = null;
         };
         heartbeat = lib.mkOption {
@@ -6435,6 +6524,15 @@ in
       }; }));
         default = null;
       };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
       heartbeat = lib.mkOption {
         type = t.nullOr (t.submodule { options = {
         showAlerts = lib.mkOption {
@@ -6721,6 +6819,15 @@ in
       };
       groupPolicy = lib.mkOption {
         type = t.nullOr (t.enum [ "open" "disabled" "allowlist" ]);
+        default = null;
+      };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
         default = null;
       };
       heartbeat = lib.mkOption {
@@ -7049,6 +7156,15 @@ in
         }; }));
           default = null;
         };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
+          default = null;
+        };
         heartbeat = lib.mkOption {
           type = t.nullOr (t.submodule { options = {
           showAlerts = lib.mkOption {
@@ -7274,6 +7390,15 @@ in
           default = null;
         };
       }; }));
+        default = null;
+      };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
         default = null;
       };
       heartbeat = lib.mkOption {
@@ -7668,6 +7793,15 @@ in
         };
         groupPolicy = lib.mkOption {
           type = t.nullOr (t.enum [ "open" "disabled" "allowlist" ]);
+          default = null;
+        };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
           default = null;
         };
         heartbeat = lib.mkOption {
@@ -8185,6 +8319,15 @@ in
       };
       groupPolicy = lib.mkOption {
         type = t.nullOr (t.enum [ "open" "disabled" "allowlist" ]);
+        default = null;
+      };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
         default = null;
       };
       heartbeat = lib.mkOption {
@@ -8823,6 +8966,15 @@ in
         }; }));
           default = null;
         };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
+          default = null;
+        };
         heartbeat = lib.mkOption {
           type = t.nullOr (t.submodule { options = {
           showAlerts = lib.mkOption {
@@ -9447,6 +9599,15 @@ in
       }; }));
         default = null;
       };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
       heartbeat = lib.mkOption {
         type = t.nullOr (t.submodule { options = {
         showAlerts = lib.mkOption {
@@ -9793,6 +9954,15 @@ in
         }; }));
           default = null;
         };
+        healthMonitor = lib.mkOption {
+          type = t.nullOr (t.submodule { options = {
+          enabled = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+        }; });
+          default = null;
+        };
         heartbeat = lib.mkOption {
           type = t.nullOr (t.submodule { options = {
           showAlerts = lib.mkOption {
@@ -10007,6 +10177,15 @@ in
           default = null;
         };
       }; }));
+        default = null;
+      };
+      healthMonitor = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
         default = null;
       };
       heartbeat = lib.mkOption {
@@ -10547,6 +10726,14 @@ in
       default = null;
     };
     channelHealthCheckMinutes = lib.mkOption {
+      type = t.nullOr (t.int);
+      default = null;
+    };
+    channelMaxRestartsPerHour = lib.mkOption {
+      type = t.nullOr (t.int);
+      default = null;
+    };
+    channelStaleEventThresholdMinutes = lib.mkOption {
       type = t.nullOr (t.int);
       default = null;
     };
