@@ -1,4 +1,4 @@
-# Generated from upstream OpenClaw schema at rev 323493fa1b6adc1e10b9954a68d5eaa5a6ef1170. DO NOT EDIT.
+# Generated from upstream OpenClaw schema at rev 041266a6699cac3baef8ef39db41fa26f29f9db3. DO NOT EDIT.
 # Generator: nix/scripts/generate-config-options.ts
 { lib }:
 let
@@ -416,6 +416,27 @@ in
         type = t.nullOr (t.oneOf [ (t.enum [ "always" ]) (t.enum [ "continuation-skip" ]) ]);
         default = null;
       };
+      contextLimits = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        memoryGetDefaultLines = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+        memoryGetMaxChars = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+        postCompactionMaxChars = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+        toolResultMaxChars = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
       contextPruning = lib.mkOption {
         type = t.nullOr (t.submodule { options = {
         hardClear = lib.mkOption {
@@ -532,6 +553,15 @@ in
       };
       envelopeTimezone = lib.mkOption {
         type = t.nullOr (t.str);
+        default = null;
+      };
+      experimental = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        localModelLean = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
         default = null;
       };
       heartbeat = lib.mkOption {
@@ -1584,6 +1614,27 @@ in
         type = t.nullOr (t.str);
         default = null;
       };
+      contextLimits = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        memoryGetDefaultLines = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+        memoryGetMaxChars = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+        postCompactionMaxChars = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+        toolResultMaxChars = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
       default = lib.mkOption {
         type = t.nullOr (t.bool);
         default = null;
@@ -2486,6 +2537,15 @@ in
       };
       skills = lib.mkOption {
         type = t.nullOr (t.listOf (t.str));
+        default = null;
+      };
+      skillsLimits = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        maxSkillsPromptChars = lib.mkOption {
+          type = t.nullOr (t.int);
+          default = null;
+        };
+      }; });
         default = null;
       };
       subagents = lib.mkOption {
@@ -5222,6 +5282,10 @@ in
             default = null;
           };
           supportsDeveloperRole = lib.mkOption {
+            type = t.nullOr (t.bool);
+            default = null;
+          };
+          supportsPromptCacheKey = lib.mkOption {
             type = t.nullOr (t.bool);
             default = null;
           };
