@@ -18,12 +18,14 @@ jobs:
     timeout-minutes: 15
     outputs:
       has_update: ${{ steps.select.outputs.has_update }}
-      release_tag: ${{ steps.select.outputs.release_tag }}
-      release_sha: ${{ steps.select.outputs.release_sha }}
+      source_tag: ${{ steps.select.outputs.source_tag }}
+      source_sha: ${{ steps.select.outputs.source_sha }}
+      source_version: ${{ steps.select.outputs.source_version }}
+      app_tag: ${{ steps.select.outputs.app_tag }}
       app_url: ${{ steps.select.outputs.app_url }}
-      release_version: ${{ steps.select.outputs.release_version }}
+      app_version: ${{ steps.select.outputs.app_version }}
       latest_stable_tag: ${{ steps.select.outputs.latest_stable_tag }}
-      skipped_releases: ${{ steps.select.outputs.skipped_releases }}
+      app_lag_releases: ${{ steps.select.outputs.app_lag_releases }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -43,18 +45,20 @@ jobs:
           done <<<"$selection"
 
           has_update="$(printf '%s\n' "$selection" | awk -F= '$1 == "has_update" { print $2; exit }')"
-          release_tag="$(printf '%s\n' "$selection" | awk -F= '$1 == "release_tag" { print $2; exit }')"
+          source_tag="$(printf '%s\n' "$selection" | awk -F= '$1 == "source_tag" { print $2; exit }')"
+          app_tag="$(printf '%s\n' "$selection" | awk -F= '$1 == "app_tag" { print $2; exit }')"
           latest_stable_tag="$(printf '%s\n' "$selection" | awk -F= '$1 == "latest_stable_tag" { print $2; exit }')"
-          skipped_releases="$(printf '%s\n' "$selection" | awk -F= '$1 == "skipped_releases" { print $2; exit }')"
+          app_lag_releases="$(printf '%s\n' "$selection" | awk -F= '$1 == "app_lag_releases" { print $2; exit }')"
 
           {
             echo "### OpenClaw release selection"
             echo
             echo "- Latest stable upstream release: \`${latest_stable_tag:-unknown}\`"
-            echo "- Selected full packageable release: \`${release_tag:-unknown}\`"
+            echo "- Selected source release: \`${source_tag:-unknown}\`"
+            echo "- Selected macOS app artifact: \`${app_tag:-preserve-current}\`"
             echo "- Update needed: \`${has_update:-unknown}\`"
-            if [[ -n "${skipped_releases:-}" ]]; then
-              echo "- Skipped newer stable releases without macOS app zip: \`${skipped_releases}\`"
+            if [[ -n "${app_lag_releases:-}" ]]; then
+              echo "- macOS app asset lagging source release(s): \`${app_lag_releases}\`"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -77,8 +81,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/update-pins.sh apply \
-            "${{ needs.select.outputs.release_tag }}" \
-            "${{ needs.select.outputs.release_sha }}" \
+            "${{ needs.select.outputs.source_tag }}" \
+            "${{ needs.select.outputs.source_sha }}" \
+            "${{ needs.select.outputs.app_tag }}" \
             "${{ needs.select.outputs.app_url }}"
 
       - name: Record materialized diff digest
@@ -126,8 +131,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           scripts/update-pins.sh apply \
-            "${{ needs.select.outputs.release_tag }}" \
-            "${{ needs.select.outputs.release_sha }}" \
+            "${{ needs.select.outputs.source_tag }}" \
+            "${{ needs.select.outputs.source_sha }}" \
+            "${{ needs.select.outputs.app_tag }}" \
             "${{ needs.select.outputs.app_url }}"
 
       - name: Record materialized diff digest
@@ -193,8 +199,9 @@ jobs:
           fi
 
           scripts/update-pins.sh apply \
-            "${{ needs.select.outputs.release_tag }}" \
-            "${{ needs.select.outputs.release_sha }}" \
+            "${{ needs.select.outputs.source_tag }}" \
+            "${{ needs.select.outputs.source_sha }}" \
+            "${{ needs.select.outputs.app_tag }}" \
             "${{ needs.select.outputs.app_url }}"
 
           if git diff --quiet -- \
@@ -226,14 +233,15 @@ jobs:
             nix/generated/openclaw-config-options.nix
 
           git commit -F - <<EOF
-          🤖 codex: mirror OpenClaw stable release ${{ needs.select.outputs.release_tag }}
+          🤖 codex: mirror OpenClaw stable source ${{ needs.select.outputs.source_tag }}
 
           What:
-          - update nix-openclaw to the selected full packageable OpenClaw stable release
-          - refresh the gateway source pin, app asset pin, and generated config options
+          - update nix-openclaw to the latest stable OpenClaw source release
+          - refresh generated config options from that source
+          - keep the macOS app pin on the newest public app artifact
 
           Why:
-          - keep nix-openclaw aligned with upstream stable releases that satisfy the public Nix package contract
+          - keep source-built OpenClaw current without blocking on public macOS app asset lag
 
           Tests:
           - nix build .#checks.x86_64-linux.ci --accept-flake-config

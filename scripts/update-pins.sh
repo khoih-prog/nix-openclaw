@@ -19,7 +19,7 @@ usage() {
   cat >&2 <<'EOF'
 Usage:
   scripts/update-pins.sh select
-  scripts/update-pins.sh apply <release_tag> <release_sha> <app_url>
+  scripts/update-pins.sh apply <source_tag> <source_sha> <app_tag> <app_url>
 EOF
 }
 
@@ -158,66 +158,73 @@ regenerate_config_options() {
 }
 
 select_release() {
-  local release_json selection_json current_rev current_version release_tag app_url release_version selected_sha
-  local latest_stable_tag skipped_releases has_update
+  local release_json selection_json current_rev current_app_version source_tag source_version selected_sha
+  local app_tag app_version app_url latest_stable_tag app_lag_releases has_update
   current_rev=$(current_field "$source_file" "rev")
-  current_version=$(current_field "$app_file" "version")
+  current_app_version=$(current_field "$app_file" "version")
 
   log "Fetching OpenClaw stable release metadata"
   release_json=$(gh api '/repos/openclaw/openclaw/releases?per_page=100')
   selection_json=$(printf '%s' "$release_json" | node "$repo_root/scripts/select-openclaw-release.mjs")
 
-  latest_stable_tag=$(printf '%s' "$selection_json" | jq -r '.latestStable.tagName // empty')
-  release_tag=$(printf '%s' "$selection_json" | jq -r '.latestFullPackageableStable.tagName // empty')
-  release_version=$(printf '%s' "$selection_json" | jq -r '.latestFullPackageableStable.releaseVersion // empty')
-  app_url=$(printf '%s' "$selection_json" | jq -r '.latestFullPackageableStable.appUrl // empty')
-  skipped_releases=$(printf '%s' "$selection_json" | jq -r '[.skippedStableReleases[]?.tagName | select(. != null)] | join(",")')
+  latest_stable_tag=$(printf '%s' "$selection_json" | jq -r '.latestStableSource.tagName // empty')
+  source_tag=$(printf '%s' "$selection_json" | jq -r '.latestStableSource.tagName // empty')
+  source_version=$(printf '%s' "$selection_json" | jq -r '.latestStableSource.releaseVersion // empty')
+  app_tag=$(printf '%s' "$selection_json" | jq -r '.latestMacAppStable.tagName // empty')
+  app_version=$(printf '%s' "$selection_json" | jq -r '.latestMacAppStable.releaseVersion // empty')
+  app_url=$(printf '%s' "$selection_json" | jq -r '.latestMacAppStable.appUrl // empty')
+  app_lag_releases=$(printf '%s' "$selection_json" | jq -r '[.appLagStableReleases[]?.tagName | select(. != null)] | join(",")')
 
-  if [[ -z "$release_tag" || -z "$release_version" || -z "$app_url" ]]; then
-    echo "Failed to resolve a full packageable OpenClaw stable release" >&2
+  if [[ -z "$source_tag" || -z "$source_version" ]]; then
+    echo "Failed to resolve an OpenClaw stable source release" >&2
     if [[ -n "$latest_stable_tag" ]]; then
       echo "Latest stable release: $latest_stable_tag" >&2
     fi
-    if [[ -n "$skipped_releases" ]]; then
-      echo "Skipped stable releases: $skipped_releases" >&2
-    fi
     exit 1
   fi
 
-  selected_sha=$(resolve_release_tag_sha "$release_tag")
+  selected_sha=$(resolve_release_tag_sha "$source_tag")
   if [[ -z "$selected_sha" ]]; then
-    echo "Failed to resolve tag SHA for $release_tag" >&2
+    echo "Failed to resolve tag SHA for $source_tag" >&2
     exit 1
   fi
 
-  log "Selected full packageable stable release: $release_tag ($selected_sha)"
-  if [[ -n "$skipped_releases" ]]; then
-    log "Skipped newer stable releases without macOS zip assets: $skipped_releases"
+  log "Selected latest stable source release: $source_tag ($selected_sha)"
+  if [[ -n "$app_tag" ]]; then
+    log "Selected latest public macOS app release: $app_tag"
+  else
+    log "No public macOS app asset found; preserving existing app pin"
+  fi
+  if [[ -n "$app_lag_releases" ]]; then
+    log "macOS app asset lags source release(s): $app_lag_releases"
   fi
 
-  if [[ "$current_version" == "$release_version" && "$current_rev" == "$selected_sha" ]]; then
+  if [[ "$current_rev" == "$selected_sha" && ( -z "$app_version" || "$current_app_version" == "$app_version" ) ]]; then
     has_update=false
   else
     has_update=true
   fi
 
   printf 'has_update=%s\n' "$has_update"
-  printf 'release_tag=%s\n' "$release_tag"
-  printf 'release_sha=%s\n' "$selected_sha"
+  printf 'source_tag=%s\n' "$source_tag"
+  printf 'source_sha=%s\n' "$selected_sha"
+  printf 'source_version=%s\n' "$source_version"
+  printf 'app_tag=%s\n' "$app_tag"
   printf 'app_url=%s\n' "$app_url"
-  printf 'release_version=%s\n' "$release_version"
+  printf 'app_version=%s\n' "$app_version"
   printf 'latest_stable_tag=%s\n' "$latest_stable_tag"
-  printf 'skipped_releases=%s\n' "$skipped_releases"
+  printf 'app_lag_releases=%s\n' "$app_lag_releases"
 }
 
 apply_release() {
-  local release_tag="$1"
+  local source_tag="$1"
   local selected_sha="$2"
-  local app_url="$3"
-  local release_version source_url source_prefetch source_hash source_store_path app_hash
+  local app_tag="$3"
+  local app_url="$4"
+  local source_version source_url source_prefetch source_hash source_store_path app_version app_hash
   local backup_dir success
 
-  release_version="${release_tag#v}"
+  source_version="${source_tag#v}"
   source_url="https://github.com/openclaw/openclaw/archive/${selected_sha}.tar.gz"
 
   source_prefetch=$(prefetch_json "$source_url")
@@ -228,10 +235,18 @@ apply_release() {
     exit 1
   fi
 
-  app_hash=$(unpacked_zip_hash "$app_url")
-  if [[ -z "$app_hash" ]]; then
-    echo "Failed to resolve app hash for $release_tag" >&2
-    exit 1
+  if [[ -n "$app_tag" || -n "$app_url" ]]; then
+    if [[ -z "$app_tag" || -z "$app_url" ]]; then
+      echo "app_tag and app_url must either both be set or both be empty" >&2
+      exit 1
+    fi
+
+    app_version="${app_tag#v}"
+    app_hash=$(unpacked_zip_hash "$app_url")
+    if [[ -z "$app_hash" ]]; then
+      echo "Failed to resolve app hash for $app_tag" >&2
+      exit 1
+    fi
   fi
 
   backup_dir=$(mktemp -d)
@@ -251,13 +266,15 @@ apply_release() {
   trap cleanup_apply RETURN
 
   perl -0pi -e 's|  releaseTag = "[^"]+";\n||g; s|  releaseVersion = "[^"]+";\n||g;' "$source_file"
-  perl -0pi -e "s|rev = \"[^\"]+\";|releaseTag = \"${release_tag}\";\n  releaseVersion = \"${release_version}\";\n  rev = \"${selected_sha}\";|" "$source_file"
+  perl -0pi -e "s|rev = \"[^\"]+\";|releaseTag = \"${source_tag}\";\n  releaseVersion = \"${source_version}\";\n  rev = \"${selected_sha}\";|" "$source_file"
   perl -0pi -e "s|hash = \"[^\"]+\";|hash = \"${source_hash}\";|" "$source_file"
   perl -0pi -e 's|pnpmDepsHash = "[^"]*";|pnpmDepsHash = "";|' "$source_file"
 
-  perl -0pi -e "s|version = \"[^\"]+\";|version = \"${release_version}\";|" "$app_file"
-  perl -0pi -e "s|url = \"[^\"]+\";|url = \"${app_url}\";|" "$app_file"
-  perl -0pi -e "s|hash = \"[^\"]+\";|hash = \"${app_hash}\";|" "$app_file"
+  if [[ -n "${app_version:-}" ]]; then
+    perl -0pi -e "s|version = \"[^\"]+\";|version = \"${app_version}\";|" "$app_file"
+    perl -0pi -e "s|url = \"[^\"]+\";|url = \"${app_url}\";|" "$app_file"
+    perl -0pi -e "s|hash = \"[^\"]+\";|hash = \"${app_hash}\";|" "$app_file"
+  fi
 
   refresh_pnpm_hash
   regenerate_config_options "$selected_sha" "$source_store_path"
@@ -278,7 +295,7 @@ case "$mode" in
     select_release
     ;;
   apply)
-    if [[ $# -ne 4 ]]; then
+    if [[ $# -ne 5 ]]; then
       usage
       exit 1
     fi
@@ -287,7 +304,7 @@ case "$mode" in
     require_cmd perl
     require_cmd unzip
     require_cmd find
-    apply_release "$2" "$3" "$4"
+    apply_release "$2" "$3" "$4" "$5"
     ;;
   *)
     usage

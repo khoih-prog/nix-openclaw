@@ -10,12 +10,15 @@ export function selectOpenClawRelease(releases) {
     return release && release.draft !== true && release.prerelease !== true;
   });
   const latestStable = stableReleases[0] ?? null;
-  const skippedStableReleases = [];
+  const latestStableSource = latestStable
+    ? stableSourceSelection(latestStable)
+    : null;
+  const appLagStableReleases = [];
 
   for (const release of stableReleases) {
     const tagName = release.tag_name ?? release.tagName;
     if (!tagName) {
-      skippedStableReleases.push({
+      appLagStableReleases.push({
         tagName: null,
         reason: "missing-tag",
       });
@@ -33,7 +36,7 @@ export function selectOpenClawRelease(releases) {
     });
 
     if (!appAsset) {
-      skippedStableReleases.push({
+      appLagStableReleases.push({
         tagName,
         reason: "missing-macos-zip",
       });
@@ -41,29 +44,39 @@ export function selectOpenClawRelease(releases) {
     }
 
     return {
-      latestStable: latestStable
-        ? {
-            tagName: latestStable.tag_name ?? latestStable.tagName,
-          }
+      latestStable: latestStableSource
+        ? { tagName: latestStableSource.tagName }
         : null,
-      latestFullPackageableStable: {
+      latestStableSource,
+      latestMacAppStable: {
         tagName,
         releaseVersion: tagName.replace(/^v/, ""),
         appAssetName: appAsset.name,
         appUrl: appAsset.browser_download_url,
       },
-      skippedStableReleases,
+      appLagStableReleases,
     };
   }
 
   return {
-    latestStable: latestStable
-      ? {
-          tagName: latestStable.tag_name ?? latestStable.tagName,
-        }
+    latestStable: latestStableSource
+      ? { tagName: latestStableSource.tagName }
       : null,
-    latestFullPackageableStable: null,
-    skippedStableReleases,
+    latestStableSource,
+    latestMacAppStable: null,
+    appLagStableReleases,
+  };
+}
+
+function stableSourceSelection(release) {
+  const tagName = release.tag_name ?? release.tagName;
+  if (!tagName) {
+    return null;
+  }
+
+  return {
+    tagName,
+    releaseVersion: tagName.replace(/^v/, ""),
   };
 }
 

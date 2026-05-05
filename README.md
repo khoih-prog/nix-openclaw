@@ -624,12 +624,13 @@ Plugins are keyed by their declared `name`. If two plugins declare the same name
 
 We ship one default package: `.#openclaw`.
 
-That package tracks the newest upstream stable OpenClaw release that satisfies the full Nix package contract:
+The gateway tracks the newest upstream stable OpenClaw source release that satisfies the Nix package contract:
 - gateway builds on Linux and macOS
 - gateway starts and answers local health checks
-- macOS app artifact is available for the same release on Darwin
 
-The Nix gate is deliberately package-focused. It does not make the full upstream Vitest suite a hard promotion gate; upstream owns source test health, while `nix-openclaw` verifies the source build, generated config options, package contents, smoke startup, and module activation.
+The macOS app is pinned separately to the newest stable public `OpenClaw-*.zip` artifact. If upstream has not promoted desktop assets for the latest source release yet, `openclaw-app` may lag; that must not block Linux users or macOS gateway users from getting the latest source-built OpenClaw.
+
+The Nix gate is deliberately package-focused. It does not make the full upstream Vitest suite a hard promotion gate; upstream owns source test health, while `nix-openclaw` verifies the source build, generated config options, package contents, smoke startup, module activation, and newest available macOS app artifact.
 
 Outputs:
 ```
@@ -653,10 +654,10 @@ Pins live in:
 ### Automated pipeline
 
 1) Hourly **Yolo Update Pins** polls upstream stable OpenClaw releases.
-2) It selects the newest stable release that satisfies the full Nix package contract.
-3) Newer stable releases that lack public macOS app assets are reported as skipped, not promoted.
-4) Yolo materializes the source pin from the selected release tag ref, updates the app asset pin from the matching release zip, and regenerates config options from that same release source.
-5) Yolo validates that exact release on the same Linux + macOS contract as repository `CI`.
+2) It selects the newest stable source release and newest stable public macOS app zip independently.
+3) Newer source releases that lack public macOS app assets are reported as app lag, not skipped.
+4) Yolo materializes the source pin from the newest source tag ref, updates the app asset pin from the newest public app zip, and regenerates config options from the selected source.
+5) Yolo validates that source/app pin set on the same Linux + macOS contract as repository `CI`.
 6) Only after both validations pass does yolo push one release-mirroring commit to `main`.
 
 ---

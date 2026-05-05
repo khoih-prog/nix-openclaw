@@ -54,14 +54,16 @@ const releases = [
 const selection = selectOpenClawRelease(releases);
 
 assert.equal(selection.latestStable.tagName, "v2026.5.3-1");
-assert.equal(selection.latestFullPackageableStable.tagName, "v2026.5.2");
-assert.equal(selection.latestFullPackageableStable.releaseVersion, "2026.5.2");
+assert.equal(selection.latestStableSource.tagName, "v2026.5.3-1");
+assert.equal(selection.latestStableSource.releaseVersion, "2026.5.3-1");
+assert.equal(selection.latestMacAppStable.tagName, "v2026.5.2");
+assert.equal(selection.latestMacAppStable.releaseVersion, "2026.5.2");
 assert.equal(
-  selection.latestFullPackageableStable.appUrl,
+  selection.latestMacAppStable.appUrl,
   "https://github.com/openclaw/openclaw/releases/download/v2026.5.2/OpenClaw-2026.5.2.zip",
 );
 assert.deepEqual(
-  selection.skippedStableReleases.map((release) => release.tagName),
+  selection.appLagStableReleases.map((release) => release.tagName),
   ["v2026.5.3-1", "v2026.5.3"],
 );
 
@@ -75,8 +77,10 @@ const none = selectOpenClawRelease([
 ]);
 
 assert.equal(none.latestStable.tagName, "v2026.5.3");
-assert.equal(none.latestFullPackageableStable, null);
-assert.deepEqual(none.skippedStableReleases, [
+assert.equal(none.latestStableSource.tagName, "v2026.5.3");
+assert.equal(none.latestStableSource.releaseVersion, "2026.5.3");
+assert.equal(none.latestMacAppStable, null);
+assert.deepEqual(none.appLagStableReleases, [
   { tagName: "v2026.5.3", reason: "missing-macos-zip" },
 ]);
 
