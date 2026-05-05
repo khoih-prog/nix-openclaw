@@ -13,6 +13,7 @@ concurrency:
 jobs:
   linux:
     runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +25,7 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Run Linux CI aggregator
-        run: nix build .#checks.x86_64-linux.ci --accept-flake-config
+        run: timeout --foreground 50m nix build .#checks.x86_64-linux.ci --accept-flake-config
 
       - name: Dump failing gateway test log
         if: failure()
@@ -34,6 +35,7 @@ jobs:
 
   macos:
     runs-on: macos-14
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +44,9 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Build Darwin CI aggregator
+        timeout-minutes: 25
         run: nix build .#checks.aarch64-darwin.ci --accept-flake-config
 
       - name: Run HM activation
+        timeout-minutes: 10
         run: scripts/hm-activation-macos.sh
