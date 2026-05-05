@@ -4,14 +4,17 @@
   openclaw-gateway,
   openclaw-app ? null,
   extendedTools ? [ ],
+  version ? null,
 }:
 
 let
   appPaths = lib.optional (openclaw-app != null) openclaw-app;
   appLinks = lib.optional (openclaw-app != null) "/Applications";
+  bundleVersion =
+    if version != null && version != "" then version else lib.getVersion openclaw-gateway;
 in
 buildEnv {
-  name = "openclaw-2.0.0-beta5";
+  name = "openclaw-${bundleVersion}";
   paths = [ openclaw-gateway ] ++ appPaths ++ extendedTools;
   pathsToLink = [ "/bin" ] ++ appLinks;
 

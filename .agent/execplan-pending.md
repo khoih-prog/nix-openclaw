@@ -1,318 +1,348 @@
-# Make Stable Release Mirroring Safe
+# Stabilize OpenClaw Nix Packaging Around Runnable Capabilities
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-Maintain this file in accordance with `/Users/josh/code/nix-openclaw/.agent/PLANS.md`.
+This document follows `.agent/PLANS.md` in this repository.
 
 ## Purpose / Big Picture
 
-After this change, `nix-openclaw` will do one simple thing reliably: mirror the latest upstream OpenClaw stable release only when that release is actually complete, and only after the same Linux + macOS contract that defines green has passed. A maintainer should be able to look at GitHub Actions and know one of three states without reading code: already current, blocked by a broken upstream release, or promoted after full validation.
+The goal is to make `openclaw/nix-openclaw` a reliable Nix packaging surface for OpenClaw users on Linux and macOS. A user should be able to install OpenClaw from this flake, build it with Nix, and run the gateway on Linux or macOS. On macOS, the flake should also provide the desktop `.app` when upstream has published a usable desktop artifact for the same OpenClaw release.
 
-The current complexity is paid by maintainers and operators. They must know that `Yolo Update Pins` pushes directly to `main`, that `scripts/update-pins.sh` contains both selection and promotion policy, that pushes from `GITHUB_TOKEN` are not fanning out into `CI`, and that an upstream stable tag can exist without the macOS asset we require. After this work, that sequencing and policy knowledge moves behind one deeper updater flow: select a release, validate it on both platforms, then promote it. The special case of “stable tag exists but app artifact is missing” becomes a visible red failure instead of a silent stale pin.
+The current system is too brittle because it treats "latest stable GitHub release has a file named `OpenClaw-*.zip`" as the release contract. Upstream release flow does not work that way: OpenClaw source tags and GitHub releases can exist before private macOS signing/notarization workflows upload `.zip`, `.dmg`, and `.dSYM.zip` assets. Missing desktop assets are a release-publication state, not proof that the source gateway cannot be packaged.
+
+After this work, the user-facing package boundary should be simple: users install `openclaw`. The `openclaw` output is the batteries-included bundle: gateway plus tools on Linux, and gateway plus tools plus the macOS app on Darwin. The `openclaw-gateway`, `openclaw-tools`, and `openclaw-app` outputs remain as component outputs for Nix modules, checks, and debugging, but they are not separate product tracks. The update automation should pick the newest fully packageable stable release for default promotion, while separately reporting newer source-only releases that are not yet full desktop releases.
 
 ## Progress
 
-- [x] (2026-04-14 10:05Z) Confirmed current `CI` shape in `.github/workflows/ci.yml`: Linux runs `scripts/check-flake-lock-owners.sh` and `nix build .#checks.x86_64-linux.ci --accept-flake-config`; macOS runs `nix build .#checks.aarch64-darwin.ci --accept-flake-config` and `scripts/hm-activation-macos.sh`.
-- [x] (2026-04-14 10:06Z) Confirmed current `Yolo Update Pins` shape in `.github/workflows/yolo-update.yml`: one Ubuntu job, direct write permission, direct call to `scripts/update-pins.sh`, no validation jobs, no gating on `CI`.
-- [x] (2026-04-14 10:07Z) Confirmed `scripts/update-pins.sh` still owns selection, mutation, commit, rebase, and push in one script.
-- [x] (2026-04-14 10:08Z) Confirmed `origin/main` had reached `13deaaf`, pinned to OpenClaw `v2026.4.11`.
-- [x] (2026-04-14 10:09Z) Confirmed upstream had an incomplete stable release `v2026.4.12` whose public GitHub release had zero assets.
-- [x] (2026-04-14 10:10Z) Confirmed upstream public `macOS Release` workflow is validation-only and explicitly says the real publish/upload path lives in `openclaw/releases-private`.
-- [x] (2026-04-14 10:11Z) Confirmed `Yolo Update Pins` runs are green and frequent, but no full nix-openclaw `CI` runs exist for the yolo-produced SHAs `a003810` or `13deaaf`.
-- [x] (2026-04-14 10:12Z) Confirmed product decision: when the latest stable release is missing the app asset, yolo should fail red and leave the old pin untouched.
-- [x] (2026-04-14 10:18Z) Confirmed current checkout is stale relative to `origin/main`: working tree pin files still show `v2026.4.9`, while `origin/main` is at `v2026.4.11`; implementation and validation commands in this plan must always anchor on the checked-out workflow run or `origin/main`, not the local stale branch state.
-- [x] (2026-04-14 14:47Z) Confirmed newest upstream stable release is now `v2026.4.14` and it does include the expected app assets, while older stable `v2026.4.12` remains assetless.
-- [x] (2026-04-14 15:21Z) Confirmed the current unsafe behavior on a healthy newest release: yolo selected `v2026.4.14`, built, committed `b023ed1`, and pushed directly to `main`, still without full nix-openclaw `CI` validation.
-- [x] (2026-04-14 15:44Z) Refactored `scripts/update-pins.sh` into explicit `select` and `apply` modes; removed commit/rebase/push authority from the script.
-- [x] (2026-04-14 15:46Z) Rewrote `.github/workflows/yolo-update.yml` into `select`, `validate-linux`, `validate-macos`, and `promote`, with read-only default permissions and write access only in `promote`.
-- [x] (2026-04-14 15:47Z) Implemented the newest-stable-release failure policy: `select` now fails only when the newest stable release is incomplete, and otherwise ignores older broken stable releases.
-- [x] (2026-04-14 15:48Z) Updated `AGENTS.md` and `README.md` so they describe the new safe yolo policy instead of the old direct-push behavior.
-- [x] (2026-04-14 15:50Z) Verified local syntax and selection behavior: `bash -n scripts/update-pins.sh`, Ruby YAML parse of `.github/workflows/yolo-update.yml`, no-op `select` on current `v2026.4.14`, and emitted release tuple from a temp copy pinned to `v2026.4.11`.
-- [ ] Push the implementation and verify real GitHub Actions behavior on the live repository.
+- [x] (2026-05-04 17:02Z) Assessed current repository state: `openclaw/nix-openclaw` is pinned to OpenClaw `v2026.4.14`; hourly yolo has failed since mid-April; latest upstream stable releases `v2026.5.3` and `v2026.5.3-1` currently have no public app assets; latest stable with public macOS zip asset is `v2026.5.2`.
+- [x] (2026-05-04 17:02Z) Read OpenClaw public release workflows and maintainer release docs in `/Users/josh/code/research/openclaw` and `/Users/josh/code/research/maintainers`.
+- [x] (2026-05-04 17:02Z) Determined DJTBOT deployment freshness is out of scope for this plan; this plan focuses only on public Nix packaging.
+- [x] (2026-05-04 17:42Z) Read the current global agent guidance in `/Users/josh/.codex/AGENTS.md`, `/Users/josh/code/nix/AGENTS.md`, and `/Users/josh/code/nix/ai-stack/AGENTS.md`; refined this plan around one obvious path, no speculative fallbacks, and existing repo seams.
+- [x] (2026-05-04 17:42Z) Re-checked the package graph and upstream gateway CLI. Confirmed `openclaw` is already the default package, `openclaw-gateway` is the source-built CLI component, and runtime smoke should use WebSocket gateway health rather than HTTP `/health`.
+- [x] (2026-05-04 17:55Z) Captured Josh's README direction: onboarding should be agent-first, where the user tells a coding agent they want OpenClaw using Nix and the agent interviews/configures/verifies.
+- [x] (2026-05-04 19:49Z) Updated README package language so `openclaw` is the single canonical install target, the primary setup flow is agent-first, and component outputs are documented as advanced/internal build seams.
+- [x] (2026-05-04 19:49Z) Implemented release discovery that understands package capabilities instead of failing on the first assetless stable release.
+- [x] (2026-05-04 19:49Z) Fixed app artifact hashing/unpacking so Nix computes the exact `fetchzip` hash from real unpacked contents and aborts clearly if no `.app` is present.
+- [x] (2026-05-04 19:49Z) Repaired config validation so it uses packaged public CLI behavior instead of scanning bundled `dist/config-*.js` internals.
+- [x] (2026-05-04 19:49Z) Added runtime smoke checks that prove the Nix-built gateway starts and answers a local health/RPC probe on Linux and macOS.
+- [x] (2026-05-04 19:49Z) Updated CI/yolo promotion to validate and promote the newest full packageable stable release, with source-only newer releases reported but not promoted into the default bundle.
+- [x] (2026-05-04 19:49Z) Updated README packaging docs after behavior changes were implemented and verified.
+- [x] (2026-05-04 19:49Z) Fixed the local Linux external-builder failure by moving the OpenClaw build working tree and PNPM store onto the Nix output filesystem during builds, then cleaning that scratch before outputs finish.
+- [x] (2026-05-04 19:49Z) Verified final gates: selector fixture, updater syntax, workflow YAML parse, live selector no-op, `nix flake show`, full Linux CI, and full Darwin CI.
+- [x] (2026-05-05 06:45Z) Created daily Codex maintainer automation `nix-openclaw-maintainer` for early Amsterdam mornings; documented that it is an agentic repair run, not a competing release pipeline.
+- [x] (2026-05-05 06:45Z) Ran a fresh self-review pass and tightened noisy Home Manager VM diagnostics by removing a space-containing `NODE_OPTIONS` systemd assignment.
+- [x] (2026-05-05 06:45Z) Fixed a self-review finding in yolo promotion: validation jobs now record the materialized release diff digest, and promotion refuses to push if it re-materializes a different diff.
+- [x] (2026-05-05 06:45Z) Removed the dead standalone config-options check file and renamed the combined gateway/config-options derivation to `openclaw-source-checks.nix`.
 
 ## Surprises & Discoveries
 
-- Observation: upstream stable release tags are not enough by themselves; the release can exist without the macOS app asset we require.
-  Evidence: `gh release view v2026.4.12 -R openclaw/openclaw --json tagName,assets` returns `"assets":[]`, while `v2026.4.11` includes `OpenClaw-2026.4.11.zip`, `.dmg`, and `.dSYM.zip`.
+- Observation: OpenClaw's public `macos-release.yml` workflow is validation-only.
+  Evidence: `openclaw/openclaw/.github/workflows/macos-release.yml` says it validates the public release handoff and does not sign, notarize, or upload macOS assets.
 
-- Observation: release selection must only care about the newest stable release, not any older broken stable releases below it.
-  Evidence: current upstream order is `v2026.4.14` (stable, assets present), then `v2026.4.12` (stable, no assets), then `v2026.4.11` (stable, assets present). The repo should pick `v2026.4.14`, not fail on historical `v2026.4.12`.
+- Observation: Real macOS release assets are produced by private workflows after the public GitHub release exists.
+  Evidence: `/Users/josh/code/research/maintainers/release/macos.md` says `openclaw/releases-private/.github/workflows/openclaw-macos-publish.yml` uploads `OpenClaw-<version>.zip`, `OpenClaw-<version>.dmg`, and `OpenClaw-<version>.dSYM.zip` to the existing public GitHub release.
 
-- Observation: upstream public macOS release automation no longer uploads public artifacts.
-  Evidence: `.github/workflows/macos-release.yml` in `openclaw/openclaw` says “This workflow validates the public release handoff… It does not sign, notarize, or upload macOS assets,” and points operators to `openclaw/releases-private`.
+- Observation: Recent stable OpenClaw releases are not all full desktop releases at the time yolo sees them.
+  Evidence: `gh api '/repos/openclaw/openclaw/releases?per_page=30'` showed `v2026.5.3-1`, `v2026.5.3`, `v2026.4.23`, and `v2026.4.21` as stable releases with no assets, while nearby stable releases such as `v2026.5.2`, `v2026.4.29`, and `v2026.4.27` had `.zip`, `.dmg`, and `.dSYM.zip`.
 
-- Observation: current yolo success does not mean `main` is safe.
-  Evidence: `gh run list --workflow 'Yolo Update Pins'` shows repeated green runs on `13deaaf`, but `gh run list --workflow CI --branch main` shows no `CI` runs for `13deaaf` or `a003810`.
+- Observation: The current app hash helper is wrong for current Nix behavior.
+  Evidence: yolo logs show `nix-prefetch-url` prints a real `/nix/store/...-OpenClaw-<version>.zip` path, but `scripts/update-pins.sh` treats the final hash line as a path component and synthesizes a different non-existent store path before calling `unzip`.
 
-- Observation: the safety problem is not limited to broken upstream releases; it also applies to healthy newest releases.
-  Evidence: yolo run `24405552249` selected `v2026.4.14`, committed `b023ed1`, and pushed `13deaaf..b023ed1 HEAD -> main`, but the workflow still contained only the single `update` job.
+- Observation: Building the macOS `.app` from source inside this flake is not the right first move.
+  Evidence: upstream `scripts/package-mac-app.sh` depends on SwiftPM, Xcode 26.1, Sparkle, Developer ID signing, notarization-adjacent packaging, MLX TTS helper builds, Control UI assets, and private release workflows. The Nix flake already has a clean boundary for the desktop app: use the published app bundle artifact on Darwin.
 
-- Observation: the current updater is a shallow module because it mixes policy and mutation.
-  Evidence: `scripts/update-pins.sh` both selects the target release and also edits files, commits, rebases, and pushes.
+- Observation: At planning time, the checked upstream OpenClaw source did not expose `openclaw config validate --json`.
+  Evidence: `/Users/josh/code/research/openclaw/src/cli/config-cli.ts` registers `config get`, `config set`, and `config unset`, but no `config validate`. `config get` calls `loadValidConfig()`, so `openclaw config get gateway --json` is the current public CLI path that proves the generated config can be loaded and validated.
 
-- Observation: the current stale state is correct for the wrong reason.
-  Evidence: `nix-openclaw` is stuck on `v2026.4.11` because `v2026.4.12` lacks assets, but the workflow presents that as repeated green success instead of an actionable failure.
+- Observation: The selected packageable release `v2026.5.2` does expose `openclaw config validate --json`.
+  Evidence: `nix/scripts/check-config-validity.mjs` now runs the packaged CLI's `config validate --json` and then checks `config get agents.defaults.workspace --json` against the generated Home Manager config.
 
-- Observation: the checked-out branch in this workspace is not the same thing as deploy truth.
-  Evidence: local `nix/sources/openclaw-source.nix` and `nix/packages/openclaw-app.nix` still show `v2026.4.9`, while `git log origin/main` shows yolo bumped `main` to `v2026.4.11`.
+- Observation: Gateway liveness must be proved through WebSocket RPC, not HTTP.
+  Evidence: upstream registers `openclaw gateway health` and `openclaw gateway call health`, both backed by the gateway `health` RPC method. The main HTTP dispatcher has no stable `/health` route, and unmatched HTTP paths return 404.
 
-- Observation: config-options regeneration has a concrete tool dependency that the workflow must preserve.
-  Evidence: `nix/scripts/generate-config-options.ts` imports `src/config/zod-schema.ts` from the selected upstream source tree and is currently run through `nix shell ... nodejs_22 pnpm_10 ... pnpm exec tsx`.
+- Observation: Determinate's local Linux external builder exposes only about 3.9 GiB for `/build`, while the OpenClaw PNPM store tar expands to about 7.8 GiB.
+  Evidence: a tiny `x86_64-linux` derivation reported `/build` on a 3.9 GiB tmpfs, and `pnpm-store.tar.zst` contains 61,553 tar entries totaling about 7.80 GiB. The first Linux gateway build failed at PNPM-store extraction with `No space left on device`.
 
-- Observation: the read-only `select` phase does not need Nix at all once command checks are split by mode.
-  Evidence: after moving `require_cmd nix` and `require_cmd perl` into `apply`, `GITHUB_ACTIONS=true GH_TOKEN=... scripts/update-pins.sh select` succeeds without installing Nix locally in the job.
-
-- Observation: the selection boundary is now demonstrably deterministic.
-  Evidence: on current repo state `select` prints no stdout and logs `Selected stable release: v2026.4.14 ...`; on a temp copy edited back to `v2026.4.11`, `select` emits `release_tag=v2026.4.14`, `release_sha=323493fa...`, `app_url=https://github.com/openclaw/openclaw/releases/download/v2026.4.14/OpenClaw-2026.4.14.zip`.
+- Observation: The Nix-built gateway hit an upstream runtime guard that rejected Nix-store hardlinks in bundled plugin public surface files.
+  Evidence: a runtime smoke attempt failed opening `anthropic/provider-policy-api.js` because `openBoundaryFileSync` rejected files with link count greater than one. Nix store deduplication can hardlink immutable package files, so the patch now allows hardlinks only under `OPENCLAW_PACKAGE_ROOT`.
 
 ## Decision Log
 
-- Decision: the latest non-draft, non-prerelease upstream GitHub release remains the target stable release.
-  Rationale: this preserves the intended stable-release mirroring model and keeps the policy aligned with upstream’s public release channel.
-  Date/Author: 2026-04-14 / Codex
+- Decision: Keep one public default package line based on the newest fully packageable stable release, not the newest source tag when desktop assets are missing.
+  Rationale: The README promises "Gateway + tools everywhere; macOS app on macOS." Promoting a source-only release would either drop the macOS app from the default Darwin bundle or create a source/app version mismatch. Both are worse for users than staying on the latest complete release while reporting newer incomplete releases.
+  Date/Author: 2026-05-04 / Codex
 
-- Decision: missing app asset on the latest stable release is a hard yolo failure.
-  Rationale: the release is incomplete for nix-openclaw’s current package model, and a quiet no-op hides a real upstream publication error. This failure rule applies only to the newest stable release, not to older broken stable releases behind a newer healthy release.
-  Date/Author: 2026-04-14 / Josh/Codex
+- Decision: Do not split the repository into separate "desktop" and "server" release tracks.
+  Rationale: The package outputs should be segmented, not the product mental model. `openclaw-gateway` is the headless/server-capable source build, `openclaw-app` is Darwin-only desktop, and `openclaw` combines the appropriate outputs for the platform. Callers should not need to know upstream release timing details.
+  Date/Author: 2026-05-04 / Codex
 
-- Decision: yolo must validate the same Linux + macOS contract as `CI` before any promotion.
-  Rationale: relying on push-triggered `CI` is already proven unsafe here because `GITHUB_TOKEN` pushes are not producing the expected follow-on `CI` runs.
-  Date/Author: 2026-04-14 / Codex
+- Decision: Treat the upstream macOS zip as the preferred desktop app artifact, but validate artifact contents instead of trusting only the filename.
+  Rationale: Maintainer docs define the real publish outputs as `.zip`, `.dmg`, and `.dSYM.zip`. The Sparkle zip is the most Nix-friendly app-bundle source. The robust boundary is to pick a plausible desktop artifact and verify it actually unpacks to an `.app`; filename matching alone is not enough.
+  Date/Author: 2026-05-04 / Codex
 
-- Decision: `scripts/update-pins.sh` will no longer commit or push.
-  Rationale: commit/push is workflow orchestration, not pin-selection logic; keeping it in the script leaks sequencing and makes validation impossible to enforce cleanly.
-  Date/Author: 2026-04-14 / Codex
+- Decision: Add runtime smoke checks before changing deployment users such as DJTBOT.
+  Rationale: The user's goal is public package health. Deployment freshness is downstream of packaging correctness and is intentionally out of scope for this plan.
+  Date/Author: 2026-05-04 / Codex
 
-- Decision: the release selection output must include the exact app URL in addition to the tag and SHA.
-  Rationale: later jobs must not recompute “latest asset” and accidentally validate one release asset while promoting another.
-  Date/Author: 2026-04-14 / Codex
+- Decision: Make `openclaw` the only canonical user-facing package name, while keeping `openclaw-gateway`, `openclaw-tools`, and `openclaw-app` as component outputs.
+  Rationale: Josh wants one thing to install, and the README already promises "One flake, everything works." Removing component outputs would make CI, Home Manager module wiring, macOS app packaging, and debugging harder without simplifying the user path. The simpler mental model is: users install `openclaw`; maintainers may inspect component outputs when diagnosing packaging.
+  Date/Author: 2026-05-04 / Codex
 
-- Decision: yolo should validate on the same runner classes and installer actions that `CI` uses today.
-  Rationale: validating on different runners or with different Nix installers would reintroduce a weaker acceptance rule under a new name.
-  Date/Author: 2026-04-14 / Codex
+- Decision: Make the README agent-first.
+  Rationale: The intended user is not supposed to become a Nix/OpenClaw packaging expert. The cleanest onboarding is to tell a coding agent "set up OpenClaw with Nix," then let the agent inspect the machine, ask the small number of setup questions, write the local flake, configure secrets, apply Home Manager, and verify the service. Manual commands should remain as reference and recovery material, not the primary story.
+  Date/Author: 2026-05-04 / Josh/Codex
+
+- Decision: Use output-backed scratch for OpenClaw Node builds.
+  Rationale: The package must build on the local Linux external builder and in CI without assuming a large `/build` filesystem. Moving the build root and PNPM store under `$out` during the build uses the Nix store filesystem, then the scripts remove `.pnpm-store` and `.openclaw-build` before the output is finalized.
+  Date/Author: 2026-05-04 / Codex
+
+- Decision: Make the Nix gateway Vitest runner resource-bounded but not fragile.
+  Rationale: The one-CPU Linux builder timed out and then hit JS heap OOM with upstream's full gateway suite. The Nix check now defaults to one worker, fork pool, a 60s per-test timeout, and a 4 GiB Node heap so constrained builders fail real hangs without failing normal slow tests.
+  Date/Author: 2026-05-04 / Codex
+
+- Decision: Use the daily Codex automation as an agentic maintainer repair loop, not as another updater.
+  Rationale: Yolo is already the release updater. The daily run should check whether yolo and CI can still uphold the package contract, then fix nix-openclaw itself when the breakage is in this repo. It may commit and push directly to `main` only after self-review and full gates pass.
+  Date/Author: 2026-05-05 / Josh/Codex
 
 ## Outcomes & Retrospective
 
-The current system got the repo most of the way to the desired policy: it switched from “latest green upstream `main` commit” to “stable release mirroring.” The missing piece is safety. The updater currently mirrors by directly moving `main`, not by proving the candidate first. That is why `main` can now drift to `v2026.4.11` without any proof that Linux and macOS still pass there.
+Implemented. The repo now promotes the newest stable release that satisfies the public Nix package contract, not blindly the newest stable source tag. As of 2026-05-04, that is `v2026.5.2`; `v2026.5.3-1` and `v2026.5.3` are reported as skipped because they do not publish the required public macOS zip asset.
 
-That unsafe behavior has now repeated on a healthy newest release too: `v2026.4.14` was mirrored straight to `main` as `b023ed1` by yolo, again without the full repo contract. So the fix is not a niche “broken-release” cleanup. It is the core promotion policy.
+The work also found and fixed two packaging bugs that were not obvious from release selection alone: Nix-store hardlinks tripped OpenClaw's bundled plugin public-surface guard, and the local Linux external builder could not fit the PNPM store in `/build`. Both are now handled in the Nix-owned packaging layer.
 
-The complexity lesson is concrete. Stable-release selection was the right simplification. Direct-to-`main` promotion inside the updater script was not. The simpler long-term system is one where the script owns only selection and pin materialization, while the workflow owns validation and promotion.
+Final local verification passed:
 
-Implementation has now landed locally in that shape. The remaining proof step is live GitHub Actions behavior on the pushed repository: repository `CI` on the workflow-change commit, and a manual no-op yolo run on already-current `v2026.4.14`.
+    node scripts/select-openclaw-release.test.mjs
+    bash -n scripts/update-pins.sh
+    ruby -e 'require "yaml"; YAML.load_file(".github/workflows/yolo-update.yml")'
+    GITHUB_ACTIONS=true scripts/update-pins.sh select
+    nix flake show --accept-flake-config
+    nix build .#checks.x86_64-linux.ci --accept-flake-config --max-jobs 1
+    nix build .#checks.aarch64-darwin.ci --accept-flake-config --max-jobs 1
 
 ## Context and Orientation
 
-There are three moving parts relevant to this plan, plus one source-of-truth warning.
+This repository packages OpenClaw with Nix. OpenClaw is a fast-moving application with a TypeScript/Node gateway, bundled plugins, a Control UI, and a native macOS desktop companion app. A gateway is a long-running process that receives messages and tool calls; in this repo it is built as `openclaw-gateway`. The desktop app is a macOS `.app` bundle; in this repo it is `openclaw-app` and exists only on Darwin systems.
 
-`.github/workflows/ci.yml` defines what “green” means today. Linux runs a repository-policy check in `scripts/check-flake-lock-owners.sh` and then builds `.#checks.x86_64-linux.ci`. macOS builds `.#checks.aarch64-darwin.ci` and then runs `scripts/hm-activation-macos.sh`. That full contract is the only acceptable proof that a pin is safe.
+The important current files are:
 
-`.github/workflows/yolo-update.yml` is the hourly updater. Today it is one Ubuntu job with write permission. It checks out the repo, installs Nix, sets bot Git identity, and runs `scripts/update-pins.sh`. There are no validation jobs and no separation between selection and promotion.
+- `flake.nix`: exposes packages, apps, checks, and modules for `x86_64-linux` and `aarch64-darwin`.
+- `nix/packages/default.nix`: constructs the package set. Today it already makes `openclaw-gateway` everywhere, `openclaw-app` only on Darwin, and `openclaw` as the bundle.
+- `nix/packages/openclaw-gateway.nix`: builds the source gateway from the upstream OpenClaw source pin in `nix/sources/openclaw-source.nix`.
+- `nix/packages/openclaw-app.nix`: fetches a published upstream macOS `.zip` and installs the contained `.app`.
+- `nix/packages/openclaw-batteries.nix`: combines gateway, app when present, and tools into the default batteries-included bundle.
+- `scripts/update-pins.sh`: current update boundary. It selects one upstream release, computes source and app hashes, rewrites pin files, refreshes `pnpmDepsHash`, and regenerates Nix config options.
+- `.github/workflows/yolo-update.yml`: hourly automation that calls `scripts/update-pins.sh`, validates on Linux and macOS, and promotes to `main` only after both pass.
+- `nix/checks/openclaw-config-validity.nix` and `nix/scripts/check-config-validity.mjs`: validate a generated Home Manager config against the packaged OpenClaw validator. This currently scans internal bundle files and breaks when upstream bundling changes.
+- `nix/checks/openclaw-package-contents.nix` and `nix/scripts/check-package-contents.sh`: assert required runtime files exist in the built gateway output.
+- `nix/checks/openclaw-source-checks.nix`: runs upstream gateway Vitest tests and verifies generated config options inside one shared source build.
 
-`scripts/update-pins.sh` is the current shallow boundary. It fetches releases, selects the latest stable release that has a matching macOS zip asset, rewrites `nix/sources/openclaw-source.nix`, rewrites `nix/packages/openclaw-app.nix`, regenerates `nix/generated/openclaw-config-options.nix`, commits, rebases, and pushes. A novice maintainer currently has to know all of that sequencing to understand why `main` moved.
+The upstream release flow matters. `openclaw/openclaw` remains the source of truth for source, tags, GitHub releases, npm publish, and the public `appcast.xml`. The public `macos-release.yml` workflow validates release handoff only. Private workflows in `openclaw/releases-private` perform macOS validation, signing, notarization, packaging, and real publish. A stable GitHub release can therefore exist before `.zip`, `.dmg`, and `.dSYM.zip` are uploaded.
 
-One more upstream fact matters. In `openclaw/openclaw`, the public `macOS Release` workflow is validation-only and the real macOS artifact publish path lives in a private repository called `openclaw/releases-private`. This means a public stable release can legitimately exist before the asset we need exists, or can remain incomplete if a maintainer forgets to finish the private publish path. In this repo, an incomplete newest stable release must be treated as a visible failure, but an older broken stable release must not block a newer complete stable release from being selected.
+This current complexity is paid by maintainers and future agents. They must know GitHub release timing, private macOS publish behavior, Nix `fetchzip` hash semantics, TypeScript bundle internals, and yolo workflow sequencing. The plan reduces that burden by putting release capability policy behind one release-discovery boundary and putting runtime proof into Nix checks.
 
-One local-repo fact also matters. This workspace’s checked-out branch is stale relative to `origin/main`; the tracked pin files in the working tree still show `v2026.4.9`, while remote `main` is already at `v2026.4.11`. Any implementation or validation work for this plan must therefore anchor on the branch being edited for the fix or on `origin/main`, not assume the current checkout reflects production truth.
+## Milestones
 
-One generator detail matters too. `nix/scripts/generate-config-options.ts` loads `src/config/zod-schema.ts` from the selected upstream source tree by path and emits `nix/generated/openclaw-config-options.nix`. That means the updater’s `apply` mode must continue to own the temporary source checkout plus the `nodejs + pnpm + tsx` invocation needed to run this generator; callers should not learn that sequencing.
+Milestone 1 is the product contract and onboarding cleanup. At the end of this milestone, README and AGENTS language should say one simple thing: users ask their coding agent to set up `openclaw` with Nix. The README should give the agent a high-quality prompt and say that the agent should inspect the machine, interview the user for missing choices, create the local flake, wire secrets, apply Home Manager, and verify the service. The component outputs still exist because the repository needs them, but they are documented as advanced build seams rather than separate products. This milestone has no behavior change. Its proof is a short README diff plus `nix flake show --accept-flake-config` showing `packages.<system>.default` and `packages.<system>.openclaw` point at the same user-facing bundle.
+
+Milestone 2 is release selection. At the end of this milestone, `scripts/update-pins.sh select` should no longer fail merely because the newest stable release lacks a macOS app asset. It should select the newest stable release that satisfies the full Nix package contract and report skipped newer stable releases. This milestone is pure policy logic and should be tested with a local fixture before it touches GitHub or Nix builds. Its proof is a fixture test where `v2026.5.3-1` and `v2026.5.3` are skipped and `v2026.5.2` is selected, plus a live `GITHUB_ACTIONS=true scripts/update-pins.sh select` run that prints the selected tuple.
+
+Milestone 3 is pin materialization. At the end of this milestone, `scripts/update-pins.sh apply <tag> <sha> <app-url>` should correctly update the source pin, app pin, `pnpmDepsHash`, and generated config options for the selected release. The app hash logic must use the actual prefetched archive path, unpack it, verify an `.app` exists, and compute the hash from the unpacked directory. Its proof is an apply run for the selected release, a Darwin `nix build .#openclaw-app --accept-flake-config -L` that yields `Applications/OpenClaw.app`, and a gateway build that succeeds after `pnpmDepsHash` refresh.
+
+Milestone 4 is public config validation. At the end of this milestone, the config-validity check should stop importing private bundled files from `dist/`. It should execute the packaged CLI against the generated config. Because current upstream has no `config validate` command, use the existing public validation path: `openclaw config get gateway --json` with `OPENCLAW_CONFIG_PATH` pointing at the generated config. Its proof is `nix build .#checks.<system>.config-validity --accept-flake-config -L` on Linux and Darwin.
+
+Milestone 5 is runtime proof. At the end of this milestone, CI should prove that the Nix-built gateway can start and answer a WebSocket health RPC without provider secrets. The smoke check should start the gateway on loopback with an ephemeral port and a generated token, then call `openclaw gateway health --url ws://127.0.0.1:<port> --token <token> --json --timeout 10000` and assert `ok: true`. Its proof is `nix build .#checks.<system>.gateway-smoke --accept-flake-config -L` on Linux and Darwin.
+
+Milestone 6 is automation and documentation. At the end of this milestone, yolo should use the same selection and materialization boundaries, validate Linux and macOS, summarize skipped newer stable releases, and promote only after the package contract passes. README should describe the actual behavior: latest full packageable stable release, not blindly latest GitHub stable tag. Its proof is a full Linux CI aggregator, a full Darwin CI aggregator plus macOS Home Manager activation, and a manual yolo run that either promotes the selected release or exits as a clean no-op.
 
 ## Plan of Work
 
-The first change is to deepen `scripts/update-pins.sh` by narrowing its responsibility. Instead of a one-shot script that decides, edits, commits, and pushes, it must become a two-mode tool.
+First, clean up the product language without changing package behavior. Update `README.md` and this repository's `AGENTS.md` so `openclaw` is the canonical user-facing package. Make README onboarding agent-first: the primary call to action is to ask a coding agent to set up OpenClaw with Nix, and the agent's job is to inspect the user's platform, ask for any missing setup choices, write the local flake from this repo's template, wire secrets, apply Home Manager, and verify the service. Keep `openclaw-gateway`, `openclaw-tools`, and `openclaw-app` exposed because existing Nix modules, checks, and advanced users need component outputs, but do not present them as competing install paths.
 
-In `scripts/update-pins.sh`, add a `select` mode that is read-only. It should fetch the latest upstream releases from `openclaw/openclaw`, pick the first release in release order that is non-draft and non-prerelease, and treat that single release as the only candidate. Then resolve three exact values from that chosen release: the `release_tag`, the concrete `release_sha` from the tag ref, and the exact `app_url` for the public `OpenClaw-*.zip` asset. This selection rule must be strict about the newest stable release only. If the newest stable release has no asset, `select` must fail on that newest stable tag; it must not silently fall back to an older stable release. But if the newest stable release has the asset, `select` must pick it even if an older stable release lower in the release list is still broken. If the current pin already matches both the selected release version and the selected SHA, `select` must exit zero and emit nothing. Otherwise it must print the exact tuple in a parseable form for the workflow to reuse unchanged.
+Next, replace the update policy with capability-aware release discovery. Add a small repo script, for example `scripts/select-openclaw-release.mjs`, that accepts the JSON returned by `gh api /repos/openclaw/openclaw/releases?per_page=100` and returns a structured selection. It should identify:
 
-Still in `scripts/update-pins.sh`, add an `apply <release_tag> <release_sha> <app_url>` mode. This mode should contain the existing file-rewrite work: prefetch source and app, update `nix/sources/openclaw-source.nix`, blank and refresh `pnpmDepsHash` by building `.#openclaw-gateway`, update `nix/packages/openclaw-app.nix`, and regenerate `nix/generated/openclaw-config-options.nix`. Preserve the concrete generator contract that exists today: `apply` owns copying or unpacking the prefetched source into a temporary writable directory and running `nix/scripts/generate-config-options.ts` through the existing `nix shell ... nodejs_22 ... pnpm_10 ... pnpm exec tsx` flow. Keep the current backup-and-restore behavior so a failed `apply` leaves the working tree cleanly restorable. Remove all commit, fetch, rebase, and push behavior from the script.
+- `latestStable`: the newest non-draft, non-prerelease release, whether or not it has assets.
+- `latestFullPackageableStable`: the newest stable release whose tag resolves to a source SHA and whose assets include a desktop artifact that can be used for `openclaw-app`.
+- `skippedStableReleases`: newer stable releases skipped because they are missing desktop artifacts.
 
-The second change is to move orchestration into `.github/workflows/yolo-update.yml`. Replace the current single-job updater with four jobs.
+The desktop artifact selector should require a non-dSYM zip whose asset unpacks to an `.app`. Do not add DMG fallback support in this plan. Upstream's real publish path is documented to upload the zip, and treating a missing zip as "not full desktop-packageable yet" keeps the policy simple. The caller should validate content during `apply`, not only during `select`.
 
-The `select` job runs first on Ubuntu with read-only permissions. Set top-level workflow permissions to `contents: read`; grant `contents: write` only to the later `promote` job. The `select` job checks out the repo, installs Nix only if needed by the script’s existing tooling, and runs `scripts/update-pins.sh select`. It must not configure bot identity because it must not mutate anything. If `select` emits nothing, the workflow ends as a no-op success. If `select` fails because the latest stable release is missing the app asset, the workflow must fail red. If `select` succeeds with a tuple, expose `release_tag`, `release_sha`, and `app_url` as job outputs.
+Then change `scripts/update-pins.sh` so `select` emits the newest full packageable stable release, plus a clear diagnostic summary for skipped newer releases. Keep `apply <tag> <sha> <app-url>` as the materialization command for now. This preserves the existing workflow interface while hiding release-policy details inside selection.
 
-The `validate-linux` job runs only when `select` returned a tuple. It must use the same runner class and Nix installer as `CI` today: `blacksmith-16vcpu-ubuntu-2404` and `cachix/install-nix-action@v31`. It checks out a fresh copy of the repo, runs `scripts/update-pins.sh apply <tag> <sha> <app_url>`, and then runs exactly the Linux half of `CI`: `scripts/check-flake-lock-owners.sh` followed by `nix build .#checks.x86_64-linux.ci --accept-flake-config`. Do not invent a lighter smoke test here.
+Next, fix app artifact hashing. Replace `unpacked_zip_hash()` with logic that uses the actual path returned by a Nix prefetch command, unpacks into a temp directory, verifies that exactly one usable `.app` is present within a shallow depth, and computes the hash from the unpacked directory in the same shape expected by `fetchzip { stripRoot = false; }`. Any unzip or `.app` discovery failure must abort the script. Do not synthesize `/nix/store` paths from hashes.
 
-The `validate-macos` job also runs only when `select` returned a tuple. It must use the same runner class and Nix installer as `CI` today: `macos-14` and `DeterminateSystems/nix-installer-action@v13`. It checks out a fresh copy, runs the same `apply`, then runs exactly the macOS half of `CI`: `nix build .#checks.aarch64-darwin.ci --accept-flake-config` and `scripts/hm-activation-macos.sh`.
+Next, repair config validation. Prefer running packaged CLI behavior over importing private bundle internals. Current upstream has no `openclaw config validate` command, so use `config get` as the public validation path. The Nix check should set `OPENCLAW_CONFIG_PATH` to the generated config file and run:
 
-The `promote` job runs only when both validation jobs pass. It is the only job with `contents: write`. It checks out a fresh copy with `fetch-depth: 0`, configures bot identity, runs `apply` again with the same exact tuple, stages only `nix/sources/openclaw-source.nix`, `nix/packages/openclaw-app.nix`, and `nix/generated/openclaw-config-options.nix`, creates one commit, rebases on `origin/main`, and pushes once. This keeps all sequencing knowledge in the workflow instead of in the updater script.
+    $OPENCLAW_GATEWAY/bin/openclaw config get gateway --json
 
-The third change is documentation. Update the “Golden path for pins” section in `AGENTS.md` and the stable-release update section in `README.md` so both documents say the same thing as the code. Specifically: yolo targets the latest stable upstream release, a missing app asset on that release is a failure, and promotion only happens after the same Linux + macOS contract as `CI` passes. Remove the current implication that yolo success alone proves the repo is safe.
+This command calls the same config loader and validator users exercise through the CLI. If it requires extra environment to avoid touching real user state, set `HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `XDG_DATA_HOME`, `OPENCLAW_STATE_DIR`, and `OPENCLAW_LOG_DIR` to fresh temp directories inside the check. Do not keep the old importer as a fallback; it is the fragile behavior this milestone removes.
 
-The complexity dividend is direct. Callers no longer need to know the updater’s sequencing rules. Maintainers no longer need to infer whether a green yolo run meant “current”, “silently stale”, or “actually promoted”. The policy becomes visible in one place: select fails on incomplete releases, validate proves the candidate, promote moves `main`.
+Next, add a runtime smoke check. Create a Nix check such as `nix/checks/openclaw-gateway-smoke.nix` backed by a real script under `nix/scripts/`, for example `nix/scripts/gateway-smoke.mjs` or `nix/scripts/gateway-smoke.sh`. The check should:
+
+1. Create isolated temp `HOME`, `XDG_*`, `OPENCLAW_STATE_DIR`, and `OPENCLAW_LOG_DIR` directories.
+2. Run `$OPENCLAW_GATEWAY/bin/openclaw --version` and verify it prints a non-empty version.
+3. Start `$OPENCLAW_GATEWAY/bin/openclaw gateway run --port <free-port> --bind loopback --allow-unconfigured --auth token --token <generated-token>` in the foreground.
+4. Poll `$OPENCLAW_GATEWAY/bin/openclaw gateway health --url ws://127.0.0.1:<free-port> --token <generated-token> --json --timeout 10000` until it returns JSON with `ok: true`.
+5. Terminate the gateway process and fail if startup, health, or shutdown fails.
+
+Use WebSocket RPC, not HTTP `/health`, because current upstream does not expose a stable HTTP health route. Use a token even on loopback because the CLI requires explicit credentials when `--url` overrides the config-derived gateway URL. Do not use real provider secrets and do not contact external services.
+
+Then wire checks into `flake.nix`. The CI aggregator should include the new smoke check on both Linux and Darwin. Keep existing package contents, config validity, gateway tests, Home Manager activation, and app build checks, but classify failures by capability in logs so a future automation can explain what failed.
+
+Finally, update `.github/workflows/yolo-update.yml` and docs. The workflow should no longer fail solely because the latest stable release lacks app assets. It should promote the newest full packageable stable release after Linux and macOS checks pass. Its summary should mention any newer skipped source-only stable releases so maintainers can see whether upstream mac publishing is lagging. README packaging docs should say that the flake tracks the newest stable release that can satisfy the public Nix package contract: gateway builds on Linux/macOS and macOS app is available on Darwin.
 
 ## Concrete Steps
 
-Run all commands from `/Users/josh/code/nix-openclaw`.
+Work from the repository root:
 
-Start by confirming the release ordering and the current target release:
+    cd /Users/josh/code/nix-openclaw
 
-    gh release list -R openclaw/openclaw --limit 6
-    gh release view v2026.4.14 -R openclaw/openclaw --json tagName,assets,publishedAt
-    gh release view v2026.4.12 -R openclaw/openclaw --json tagName,assets,publishedAt
-    gh run list --workflow CI --branch main --limit 5 --json databaseId,headSha,conclusion,createdAt
-    gh run list --workflow "Yolo Update Pins" --limit 5 --json databaseId,headSha,conclusion,createdAt
+Before editing, check the current worktree:
 
-Expected observations today:
+    git status --short
 
-    - v2026.4.14 is the newest stable release and has the expected assets
-    - v2026.4.12 exists with "assets": []
-    - latest CI head is older than origin/main
-    - yolo has already pushed b023ed1 for v2026.4.14 without matching CI runs
+Clean up product naming first. Update README so the first setup path is agent-first: "tell your coding agent you want OpenClaw using Nix." Keep the existing prompt block, but make it the primary onboarding flow and make clear that the agent should interview the user for OS, CPU, Home Manager target, channels, documents, and secrets. Also make `.#openclaw` the one recommended package. Keep the package table, but label `openclaw-gateway`, `openclaw-tools`, and `openclaw-app` as advanced component outputs. Verify the exposed outputs:
 
-After refactoring the updater script:
+    nix flake show --accept-flake-config
+
+Expected result:
+
+    packages.<system>.default and packages.<system>.openclaw are present.
+    openclaw-gateway remains present for checks/modules/debugging.
+
+Implement release selection with fixtures. Add a pure selector script and unit fixture coverage. The selector must be runnable without network access when passed a local release JSON fixture, so it can be tested cheaply. A successful fixture test should prove that when releases are ordered as `v2026.5.3-1` with no assets, `v2026.5.3` with no assets, and `v2026.5.2` with `OpenClaw-2026.5.2.zip`, selection chooses `v2026.5.2` and reports the two newer skipped tags.
+
+Run:
+
+    node scripts/select-openclaw-release.test.mjs
+
+Expected result:
+
+    release selection: ok
+
+Fix `scripts/update-pins.sh` and verify syntax:
 
     bash -n scripts/update-pins.sh
-    GITHUB_ACTIONS=true GH_TOKEN="$(gh auth token)" scripts/update-pins.sh select
 
-Expected behavior:
+Run release selection in GitHub Actions mode without applying:
 
-    - on current upstream state, select chooses v2026.4.14 and ignores the older broken v2026.4.12 release
-    - if the newest stable release ever lacks the required app asset, select fails and names that newest stable release
+    GITHUB_ACTIONS=true scripts/update-pins.sh select
 
-After rewriting the workflow:
+Expected result on 2026-05-04, unless upstream assets changed:
 
-    git fetch origin --quiet
-    gh workflow view "Yolo Update Pins" --yaml
-    gh workflow run "Yolo Update Pins"
-    gh run list --workflow "Yolo Update Pins" --limit 3
-    gh run view <new-yolo-run-id> --log
+    release_tag=v2026.5.2
+    release_sha=8b2a6e57fef6c582ec6d27b85150616f9e3a7ba4
+    app_url=https://github.com/openclaw/openclaw/releases/download/v2026.5.2/OpenClaw-2026.5.2.zip
+    release_version=2026.5.2
 
-Expected behavior for the current upstream state:
+Fix app hash materialization. Validate it by applying the selected release in a disposable worktree or on the working branch, then building `openclaw-app` on Darwin:
 
-    - select chooses v2026.4.14
-    - validate-linux passes
-    - validate-macos passes
-    - promote pushes one commit only after those validations pass
+    GITHUB_ACTIONS=true scripts/update-pins.sh apply v2026.5.2 8b2a6e57fef6c582ec6d27b85150616f9e3a7ba4 https://github.com/openclaw/openclaw/releases/download/v2026.5.2/OpenClaw-2026.5.2.zip
+    nix build .#openclaw-app --accept-flake-config -L
 
-Expected behavior for a future broken newest stable release:
+Expected result:
 
-    - select job fails red with a clear missing-asset message naming that newest stable release
-    - validate and promote jobs do not run
-    - main stays pinned to the previous complete stable release
+    The build succeeds and the result contains Applications/OpenClaw.app.
 
-After a successful promote:
+Repair config validation by changing `nix/scripts/check-config-validity.mjs` so it executes the packaged CLI:
 
-    gh run list --workflow CI --branch main --limit 3
-    git show origin/main:nix/packages/openclaw-app.nix | sed -n '1,40p'
-    git show origin/main:nix/sources/openclaw-source.nix | sed -n '1,20p'
+    $OPENCLAW_GATEWAY/bin/openclaw config get gateway --json
 
-Expected observations:
+Keep `OPENCLAW_CONFIG_PATH` pointed at the generated config file. Run:
 
-    - main points at the new release version
-    - even if push-triggered CI does not fan out, the yolo run itself has already proven Linux and macOS before the push
+    nix build .#checks.x86_64-linux.config-validity --accept-flake-config -L
+    nix build .#checks.aarch64-darwin.config-validity --accept-flake-config -L
+
+Add the gateway smoke check. It should start the packaged gateway with loopback bind and a generated token, then prove the WebSocket health RPC:
+
+    $OPENCLAW_GATEWAY/bin/openclaw gateway run --allow-unconfigured --bind loopback --port <port> --auth token --token <token>
+    $OPENCLAW_GATEWAY/bin/openclaw gateway health --url ws://127.0.0.1:<port> --token <token> --json --timeout 10000
+
+Run:
+
+    nix build .#checks.x86_64-linux.gateway-smoke --accept-flake-config -L
+    nix build .#checks.aarch64-darwin.gateway-smoke --accept-flake-config -L
+
+Run full CI aggregators:
+
+    nix build .#checks.x86_64-linux.ci --accept-flake-config -L
+    nix build .#checks.aarch64-darwin.ci --accept-flake-config -L
+
+If local Darwin or Linux hardware is not available, push a branch and use GitHub Actions for the missing platform. Do not claim platform success until the corresponding check has actually run.
 
 ## Validation and Acceptance
 
-The change is complete when a maintainer can verify six behaviors.
+Acceptance is user-visible package behavior, not just a green script.
 
-First, release ordering is correct. With the current upstream release list, `select` and yolo must choose `v2026.4.14`, because it is the newest stable release and it has the required asset, even though older stable `v2026.4.12` is still broken.
+The release selector is accepted when it chooses the newest stable release that satisfies the full Nix package contract, and reports newer stable releases that were skipped because desktop assets are not yet published.
 
-Second, the broken-newest-release case is visible. If the newest stable release ever lacks the required app asset, yolo must fail red and clearly name that newest stable release. `main` must remain pinned to the previous complete release.
+The app package is accepted when `nix build .#openclaw-app --accept-flake-config -L` succeeds on Darwin and the result contains `Applications/OpenClaw.app`.
 
-Third, no-op behavior remains clean. If the currently pinned release already matches the newest complete upstream stable release, `select` must exit zero without mutating tracked files, and the workflow must finish green without a promotion commit.
+The gateway package is accepted when `nix build .#openclaw-gateway --accept-flake-config -L` succeeds on Linux and Darwin, and the gateway smoke check proves `openclaw --version` and local gateway health both work from the Nix-built output.
 
-Fourth, promotion is safe. When yolo selects the newest stable release, it must use that exact release tuple in Linux validation, macOS validation, and promote. A release may only land if both platform validations pass.
+The automation is accepted when a yolo run can select, materialize, validate, and promote the latest full packageable stable release without being blocked by newer stable releases that lack public macOS assets.
 
-Fifth, file scope remains tight. A successful promotion commit must change only the source pin, app pin, and generated config options. `flake.lock` must remain untouched.
-
-Sixth, runner parity is preserved. The Linux validation job must use the same runner class and Nix installer as `CI`, and the macOS validation job must use the same runner class and Nix installer as `CI`, so the new boundary does not quietly weaken acceptance by validating on different infrastructure.
-
-Seventh, the generator path is preserved. A successful implementation must still regenerate `nix/generated/openclaw-config-options.nix` from the selected upstream source tree using the existing TypeScript generator path, not by introducing a second schema-generation mechanism.
+The docs are accepted when `AGENTS.md` and `README.md` no longer say the newest stable missing a macOS zip is by itself a yolo failure. They should instead state the actual contract: users ask a coding agent to set up `openclaw`, and automation promotes the newest stable release that builds and runs under the Nix package outputs.
 
 ## Idempotence and Recovery
 
-The `select` mode must be read-only and repeatable. Running it multiple times against the same upstream state should either fail with the same missing-asset error, produce the same release tuple, or no-op if already current.
+`scripts/update-pins.sh select` must be read-only. `apply` may rewrite `nix/sources/openclaw-source.nix`, `nix/packages/openclaw-app.nix`, and `nix/generated/openclaw-config-options.nix`, but it must restore those files if materialization fails before success.
 
-The `apply` mode may edit the working tree, but it must keep backup-and-restore behavior so a failed prefetch, failed `pnpmDepsHash` refresh, or failed config regeneration can be retried safely in the same checkout.
+When changing yolo or pin behavior, never overwrite tracked upstream files from outside the repo. If an upstream file is needed for comparison, stage it under `/tmp/` or clone under `/Users/josh/code/research`.
 
-The workflow is safe to rerun. If `select` fails due to a broken newest upstream release, the next hourly run should fail the same way until upstream fixes that newest release or a newer healthy stable release supersedes it. That repeated red signal is intentional because it is the visibility mechanism for an incomplete upstream stable release. If validation fails on Linux or macOS, no promotion occurs and `main` remains unchanged. If promote fails after commit but before push, rerunning the workflow should reconstruct the same state from the same selected tuple.
+If a candidate release fails source build or runtime smoke, do not paper over the failure by skipping tests or adding broad postpatch hacks. Diagnose whether the failure is an upstream package boundary change, a Nix build dependency issue, or a real runtime regression, and update this plan's `Surprises & Discoveries` and `Decision Log`.
+
+If app assets are missing for the newest stable release, do not fail the whole updater. Select the newest full packageable stable release and include the skipped newer releases in the workflow summary.
 
 ## Artifacts and Notes
 
-Current upstream-state evidence:
+Current observed release state on 2026-05-04:
 
-    $ gh release list -R openclaw/openclaw --limit 6
-    v2026.4.14
-    v2026.4.14-beta.1
-    v2026.4.12
-    v2026.4.12-beta.1
-    v2026.4.11
+    v2026.5.3-1 stable, no assets
+    v2026.5.3 stable, no assets
+    v2026.5.2 stable, assets: OpenClaw-2026.5.2.dmg, OpenClaw-2026.5.2.dSYM.zip, OpenClaw-2026.5.2.zip
+    v2026.4.29 stable, assets: OpenClaw-2026.4.29.dmg, OpenClaw-2026.4.29.dSYM.zip, OpenClaw-2026.4.29.zip
 
-    $ gh release view v2026.4.14 -R openclaw/openclaw --json tagName,assets
-    {"tagName":"v2026.4.14","assets":[...]}
+Current `nix-openclaw` pin after implementation:
 
-Historical broken-release evidence:
+    OpenClaw source: v2026.5.2, rev 8b2a6e57fef6c582ec6d27b85150616f9e3a7ba4
+    macOS app: OpenClaw-2026.5.2.zip
+    Top-level Nix bundle: openclaw-2026.5.2
 
-    $ gh release view v2026.4.12 -R openclaw/openclaw --json tagName,assets
-    {"tagName":"v2026.4.12","assets":[]}
+The latest known upstream release gap:
 
-Current stale-vs-green evidence:
+    Latest stable OpenClaw release v2026.5.3-1 is missing the required macOS zip asset
 
-    $ git log --oneline -n 4 origin/main
-    b023ed1 🤖 codex: mirror OpenClaw stable release v2026.4.14
-    13deaaf 🤖 codex: mirror OpenClaw stable release v2026.4.11
-    a003810 🤖 codex: mirror OpenClaw stable release v2026.4.10
-    c2e8301 fix(ci): resolve vitest entrypoint in gateway tests
+The more important hidden failure mode from earlier yolo apply runs:
 
-    $ gh run list --workflow CI --branch main --limit 3
-    24247056188  success  c2e8301...
-
-Unsafe healthy-release promotion evidence:
-
-    $ gh run view 24405552249 --log | tail -n 5
-    [main b023ed1] 🤖 codex: mirror OpenClaw stable release v2026.4.14
-    ...
-    13deaaf..b023ed1  HEAD -> main
-
-Local-workspace caveat:
-
-    $ sed -n '1,20p' nix/sources/openclaw-source.nix
-    rev = "0512059..."
-
-This workspace file state is stale and must not be treated as production truth while implementing this plan.
-
-Public upstream release pipeline evidence:
-
-    public macOS Release workflow summary:
-    "This workflow validates the public release handoff... It does not sign, notarize, or upload macOS assets."
-
-This proves two things: the repo should not silently treat a stable release as promotable merely because the tag exists, and it should not let an older broken stable release block a newer healthy stable release.
+    unzip: cannot find or open /nix/store/...-OpenClaw-2026.4.29.zip
+    Missing validation module: .../lib/openclaw/dist/config/validation.js
 
 ## Interfaces and Dependencies
 
-In `scripts/update-pins.sh`, define two stable entrypoints:
+Keep these interfaces stable unless there is a strong reason to change them:
 
-    scripts/update-pins.sh select
-    scripts/update-pins.sh apply <release_tag> <release_sha> <app_url>
+- `scripts/update-pins.sh select`: prints `key=value` lines for GitHub Actions outputs. It should stay read-only.
+- `scripts/update-pins.sh apply <release_tag> <release_sha> <app_url>`: materializes the selected release into repo pin files.
+- `nix/sources/openclaw-source.nix`: source pin for the gateway build.
+- `nix/packages/openclaw-app.nix`: Darwin-only desktop app artifact pin.
+- `.#openclaw`: canonical user-facing package. On Linux it should contain gateway plus tools. On Darwin it should contain gateway plus tools plus `OpenClaw.app`.
+- `.#openclaw-gateway`: source-built runnable gateway package.
+- `.#openclaw-app`: Darwin-only desktop app package.
+- `.#openclaw-tools`: toolchain package used by the batteries-included bundle.
 
-`select` hides release discovery policy. Callers must not know how to query the GitHub releases API, how to ignore prereleases, how to resolve a tag SHA, or how to verify that the app asset exists.
+New helper scripts should hide policy from callers. The selector should hide GitHub release ordering, asset classification, and skipped-release reporting. The smoke check should hide all temporary runtime setup needed to prove a Nix-built gateway can start.
 
-`apply` hides pin materialization policy. Callers must not know how to refresh `pnpmDepsHash`, how to prefetch the source/app hashes, or how to regenerate config options.
+## Change Note
 
-In `.github/workflows/yolo-update.yml`, define four jobs:
+2026-05-04 / Codex: Replaced the old yolo-focused pending plan with this package-contract plan after learning the upstream release flow from `openclaw/maintainers` and `openclaw/openclaw`. The old plan assumed the newest stable release must have a public macOS zip. The current release process proves that assumption is wrong.
 
-    select
-    validate-linux
-    validate-macos
-    promote
+2026-05-04 / Codex: Refined the plan after reading global agent guidance and re-checking package/runtime code. The plan now leads with one canonical user-facing package (`openclaw`), adds milestone-level acceptance criteria, replaces the non-existent `openclaw config validate` command with the existing public `config get` validation path, and pins runtime smoke proof to WebSocket gateway health instead of HTTP.
 
-The workflow becomes the only place that knows the sequencing policy: select once, validate twice, then promote once. That is the deeper boundary this plan is creating. Top-level workflow permissions should default to read-only, with write permission granted only to `promote`.
+2026-05-04 / Codex: Updated the plan with Josh's README direction. The first milestone now explicitly makes onboarding agent-first: the user tells a coding agent they want OpenClaw with Nix, and the agent handles inspection, interview, configuration, and verification.
 
-The Linux validation job must reuse the exact current `CI` contract:
+2026-05-04 / Codex: Implementation completed. The top-level package now follows release metadata from `nix/sources/openclaw-source.nix`, so `.#openclaw` reports `openclaw-2026.5.2` instead of stale beta metadata.
 
-    scripts/check-flake-lock-owners.sh
-    nix build .#checks.x86_64-linux.ci --accept-flake-config
+2026-05-05 / Codex: Added the daily maintainer automation contract to `AGENTS.md` and created Codex automation `nix-openclaw-maintainer` for 06:00 Europe/Amsterdam. The automation inspects upstream releases, yolo, CI, current pins, and selector output; if breakage belongs in nix-openclaw, it fixes, self-reviews, runs gates, commits to `main`, and pushes without opening a PR.
 
-The macOS validation job must reuse the exact current `CI` contract:
-
-    nix build .#checks.aarch64-darwin.ci --accept-flake-config
-    scripts/hm-activation-macos.sh
-
-Revision note (2026-04-14 10:15Z): replaced the prior general stable-release-mirroring plan with a narrower safety plan after observing real production behavior. The new plan is grounded in the current broken upstream `v2026.4.12` release, the missing downstream CI fan-out on yolo-produced commits, and the explicit maintainer decision that missing release assets must fail red rather than silently no-op.
-
-Revision note (2026-04-14 10:20Z): tightened the implementation details after re-reading the current repo and docs. The plan now locks validation to the exact current CI runners/installers, makes the “latest stable but assetless” failure semantics explicit, scopes workflow permissions to read-by-default/write-only-on-promote, and warns that the local checkout is stale relative to `origin/main` so implementation must anchor on remote truth.
-
-Revision note (2026-04-14 14:50Z): updated the release-selection rules after re-checking upstream. The newest stable release is now `v2026.4.14` and it has the expected assets, while older stable `v2026.4.12` remains broken. The plan now explicitly says to fail only when the newest stable release is incomplete, and otherwise to pick the newest stable release even if an older stable release is still assetless.
-
-Revision note (2026-04-14 15:25Z): tightened the plan after observing the live `v2026.4.14` yolo run. The plan now explicitly captures that the unsafe behavior reproduces even on a healthy newest release, updates evidence to `b023ed1`, and preserves the concrete config-options generator dependency so implementation does not accidentally split schema-generation policy across multiple places.
-
-Revision note (2026-04-14 15:50Z): implementation is now in progress in the working tree. The plan was updated to record the completed script/workflow/docs slices, the split command requirements that make `select` truly read-only, and the concrete local validation results for both the no-op and stale-pin selection paths.
+2026-05-05 / Codex: Fresh self-review found that yolo promotion re-ran materialization after validation without proving the resulting patch was identical. The workflow now records Linux and macOS materialized diff digests and blocks direct-to-main promotion if promote re-materializes different pin/config changes.

@@ -20,6 +20,9 @@ jobs:
       release_tag: ${{ steps.select.outputs.release_tag }}
       release_sha: ${{ steps.select.outputs.release_sha }}
       app_url: ${{ steps.select.outputs.app_url }}
+      release_version: ${{ steps.select.outputs.release_version }}
+      latest_stable_tag: ${{ steps.select.outputs.latest_stable_tag }}
+      skipped_releases: ${{ steps.select.outputs.skipped_releases }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,20 +36,33 @@ jobs:
         run: |
           set -euo pipefail
           selection="$(scripts/update-pins.sh select)"
-          if [[ -z "$selection" ]]; then
-            echo "has_update=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
 
-          echo "has_update=true" >> "$GITHUB_OUTPUT"
           while IFS='=' read -r key value; do
             echo "${key}=${value}" >> "$GITHUB_OUTPUT"
           done <<<"$selection"
+
+          has_update="$(printf '%s\n' "$selection" | awk -F= '$1 == "has_update" { print $2; exit }')"
+          release_tag="$(printf '%s\n' "$selection" | awk -F= '$1 == "release_tag" { print $2; exit }')"
+          latest_stable_tag="$(printf '%s\n' "$selection" | awk -F= '$1 == "latest_stable_tag" { print $2; exit }')"
+          skipped_releases="$(printf '%s\n' "$selection" | awk -F= '$1 == "skipped_releases" { print $2; exit }')"
+
+          {
+            echo "### OpenClaw release selection"
+            echo
+            echo "- Latest stable upstream release: \`${latest_stable_tag:-unknown}\`"
+            echo "- Selected full packageable release: \`${release_tag:-unknown}\`"
+            echo "- Update needed: \`${has_update:-unknown}\`"
+            if [[ -n "${skipped_releases:-}" ]]; then
+              echo "- Skipped newer stable releases without macOS app zip: \`${skipped_releases}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   validate-linux:
     needs: select
     if: needs.select.outputs.has_update == 'true'
     runs-on: blacksmith-16vcpu-ubuntu-2404
+    outputs:
+      materialization_digest: ${{ steps.materialization.outputs.materialization_digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,6 +78,20 @@ jobs:
             "${{ needs.select.outputs.release_tag }}" \
             "${{ needs.select.outputs.release_sha }}" \
             "${{ needs.select.outputs.app_url }}"
+
+      - name: Record materialized diff digest
+        id: materialization
+        run: |
+          set -euo pipefail
+          digest="$(
+            git diff --binary -- \
+              nix/sources/openclaw-source.nix \
+              nix/packages/openclaw-app.nix \
+              nix/generated/openclaw-config-options.nix \
+              | shasum -a 256 \
+              | awk '{ print $1 }'
+          )"
+          echo "materialization_digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Verify flake.lock owners
         run: scripts/check-flake-lock-owners.sh
@@ -79,6 +109,8 @@ jobs:
     needs: select
     if: needs.select.outputs.has_update == 'true'
     runs-on: macos-14
+    outputs:
+      materialization_digest: ${{ steps.materialization.outputs.materialization_digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,6 +126,20 @@ jobs:
             "${{ needs.select.outputs.release_tag }}" \
             "${{ needs.select.outputs.release_sha }}" \
             "${{ needs.select.outputs.app_url }}"
+
+      - name: Record materialized diff digest
+        id: materialization
+        run: |
+          set -euo pipefail
+          digest="$(
+            git diff --binary -- \
+              nix/sources/openclaw-source.nix \
+              nix/packages/openclaw-app.nix \
+              nix/generated/openclaw-config-options.nix \
+              | shasum -a 256 \
+              | awk '{ print $1 }'
+          )"
+          echo "materialization_digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Build Darwin CI aggregator
         run: nix build .#checks.aarch64-darwin.ci --accept-flake-config
@@ -122,10 +168,23 @@ jobs:
       - name: Promote selected release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINUX_MATERIALIZATION_DIGEST: ${{ needs.validate-linux.outputs.materialization_digest }}
+          MACOS_MATERIALIZATION_DIGEST: ${{ needs.validate-macos.outputs.materialization_digest }}
         run: |
           set -euo pipefail
           git config user.name "openclaw-ci"
           git config user.email "ci@openclaw.local"
+
+          if [[ -z "$LINUX_MATERIALIZATION_DIGEST" || -z "$MACOS_MATERIALIZATION_DIGEST" ]]; then
+            echo "Missing validation materialization digest." >&2
+            exit 1
+          fi
+          if [[ "$LINUX_MATERIALIZATION_DIGEST" != "$MACOS_MATERIALIZATION_DIGEST" ]]; then
+            echo "Linux and macOS materialized different release diffs." >&2
+            echo "Linux: $LINUX_MATERIALIZATION_DIGEST" >&2
+            echo "macOS: $MACOS_MATERIALIZATION_DIGEST" >&2
+            exit 1
+          fi
 
           scripts/update-pins.sh apply \
             "${{ needs.select.outputs.release_tag }}" \
@@ -140,6 +199,21 @@ jobs:
             exit 0
           fi
 
+          promote_digest="$(
+            git diff --binary -- \
+              nix/sources/openclaw-source.nix \
+              nix/packages/openclaw-app.nix \
+              nix/generated/openclaw-config-options.nix \
+              | shasum -a 256 \
+              | awk '{ print $1 }'
+          )"
+          if [[ "$promote_digest" != "$LINUX_MATERIALIZATION_DIGEST" ]]; then
+            echo "Promote materialized a different release diff than validation." >&2
+            echo "Validated: $LINUX_MATERIALIZATION_DIGEST" >&2
+            echo "Promote:   $promote_digest" >&2
+            exit 1
+          fi
+
           git add \
             nix/sources/openclaw-source.nix \
             nix/packages/openclaw-app.nix \
@@ -149,11 +223,11 @@ jobs:
           🤖 codex: mirror OpenClaw stable release ${{ needs.select.outputs.release_tag }}
 
           What:
-          - update nix-openclaw to the latest stable OpenClaw release
+          - update nix-openclaw to the selected full packageable OpenClaw stable release
           - refresh the gateway source pin, app asset pin, and generated config options
 
           Why:
-          - keep nix-openclaw aligned with upstream stable releases without bypassing repository CI
+          - keep nix-openclaw aligned with upstream stable releases that satisfy the public Nix package contract
 
           Tests:
           - nix build .#checks.x86_64-linux.ci --accept-flake-config

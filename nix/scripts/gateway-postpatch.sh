@@ -9,6 +9,10 @@ if [ -n "${PATCH_BUNDLED_RUNTIME_DEPS_SCRIPT:-}" ] && [ -f scripts/stage-bundled
   chmod u+w scripts/stage-bundled-plugin-runtime-deps.mjs
 fi
 
+if [ -n "${PATCH_PUBLIC_SURFACE_HARDLINKS:-}" ]; then
+  patch -p1 < "$PATCH_PUBLIC_SURFACE_HARDLINKS"
+fi
+
 if [ -f src/logging/logger.ts ]; then
   if ! grep -q "OPENCLAW_LOG_DIR" src/logging/logger.ts; then
     sed -i 's/export const DEFAULT_LOG_DIR = "\/tmp\/openclaw";/export const DEFAULT_LOG_DIR = process.env.OPENCLAW_LOG_DIR ?? "\/tmp\/openclaw";/' src/logging/logger.ts

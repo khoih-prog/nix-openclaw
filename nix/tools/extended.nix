@@ -52,7 +52,8 @@ let
     "mcporter"
     "qmd"
     "nano-pdf"
-  ] ++ bundledToolNames;
+  ]
+  ++ bundledToolNames;
   toolNamesBase = if toolNamesOverride != null then toolNamesOverride else baseNames ++ extraNames;
   toolNames = builtins.filter (name: !builtins.elem name excludeToolNames) toolNamesBase;
 

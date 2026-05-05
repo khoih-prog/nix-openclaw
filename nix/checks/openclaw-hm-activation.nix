@@ -67,7 +67,7 @@ pkgs.testers.nixosTest {
                 "OPENCLAW_SKIP_CRON=1"
                 "OPENCLAW_SKIP_GMAIL_WATCHER=1"
                 "OPENCLAW_DISABLE_BONJOUR=1"
-                "NODE_OPTIONS=--report-on-fatalerror --report-on-signal --report-signal=SIGABRT"
+                "NODE_OPTIONS=--report-on-fatalerror"
                 "NODE_REPORT_DIRECTORY=/tmp/openclaw"
                 "NODE_REPORT_FILENAME=node-report.%p.json"
               ];

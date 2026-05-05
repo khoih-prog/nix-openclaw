@@ -139,24 +139,18 @@ in
       description = "Custom/community plugins (merged with bundled plugin toggles).";
     };
 
-    bundledPlugins =
-      lib.mapAttrs
-        (
-          name: plugin:
-          {
-            enable = lib.mkOption {
-              type = lib.types.bool;
-              default = plugin.defaultEnable or false;
-              description = "Enable the ${name} plugin (bundled).";
-            };
-            config = lib.mkOption {
-              type = lib.types.attrs;
-              default = { };
-              description = "Bundled plugin configuration passed through to ${name} (env/settings).";
-            };
-          }
-        )
-        pluginCatalog;
+    bundledPlugins = lib.mapAttrs (name: plugin: {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = plugin.defaultEnable or false;
+        description = "Enable the ${name} plugin (bundled).";
+      };
+      config = lib.mkOption {
+        type = lib.types.attrs;
+        default = { };
+        description = "Bundled plugin configuration passed through to ${name} (env/settings).";
+      };
+    }) pluginCatalog;
 
     launchd.enable = lib.mkOption {
       type = lib.types.bool;

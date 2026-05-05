@@ -7,19 +7,24 @@
   nodejs_22,
   pnpm_10,
   fetchPnpmDeps,
+  bun,
   pkg-config,
   jq,
   python3,
   node-gyp,
+  vips,
   git,
   zstd,
   sourceInfo,
+  openclawGateway,
   pnpmDepsHash ? (sourceInfo.pnpmDepsHash or null),
 }:
 
 let
   pluginCatalog = import ../modules/home-manager/openclaw/plugin-catalog.nix;
-  linuxBundledPlugins = builtins.attrNames (lib.filterAttrs (_: plugin: plugin.linux or false) pluginCatalog);
+  linuxBundledPlugins = builtins.attrNames (
+    lib.filterAttrs (_: plugin: plugin.linux or false) pluginCatalog
+  );
   enableBundledPlugin = name: stdenv.hostPlatform.isDarwin || lib.elem name linuxBundledPlugins;
 
   stubModule =
@@ -122,27 +127,34 @@ let
           ;
       }
       {
-        pname = "openclaw-config-options";
+        pname = "openclaw-source-checks";
         sourceInfo = sourceInfo;
         pnpmDepsHash = pnpmDepsHash;
         pnpmDepsPname = "openclaw-gateway";
+        enableSharp = true;
+        extraNativeBuildInputs = [ bun ];
+        extraBuildInputs = [ vips ];
       };
 
 in
 
 stdenv.mkDerivation (finalAttrs: {
-  pname = "openclaw-config-options";
+  pname = "openclaw-source-checks";
   inherit (common) version;
 
   src = common.resolvedSrc;
   pnpmDeps = common.pnpmDeps;
 
   nativeBuildInputs = common.nativeBuildInputs;
+  buildInputs = common.buildInputs;
 
   env = common.env // {
     PNPM_DEPS = finalAttrs.pnpmDeps;
+    OPENCLAW_GATEWAY = openclawGateway;
     CONFIG_OPTIONS_GENERATOR = "${../scripts/generate-config-options.ts}";
     CONFIG_OPTIONS_GOLDEN = "${../generated/openclaw-config-options.nix}";
+    CONFIG_OPTIONS_CHECK_SH = "${../scripts/config-options-check.sh}";
+    GATEWAY_TESTS_CHECK_SH = "${../scripts/gateway-tests-check.sh}";
     NODE_ENGINE_CHECK = "${../scripts/check-node-engine.ts}";
     OPENCLAW_PLUGIN_EVAL = pluginEvalKey;
     OPENCLAW_SCHEMA_REV = sourceInfo.rev;
@@ -150,11 +162,11 @@ stdenv.mkDerivation (finalAttrs: {
 
   passthru = common.passthru;
 
-  buildPhase = "${../scripts/gateway-tests-build.sh}";
   postPatch = "${../scripts/gateway-postpatch.sh}";
+  buildPhase = "${../scripts/gateway-tests-build.sh}";
 
   doCheck = true;
-  checkPhase = "${../scripts/config-options-check.sh}";
+  checkPhase = "${../scripts/source-checks-check.sh}";
 
   installPhase = "${../scripts/empty-install.sh}";
   dontPatchShebangs = true;

@@ -34,7 +34,11 @@
 }:
 
 let
-  sourceFetch = lib.removeAttrs sourceInfo [ "pnpmDepsHash" ];
+  sourceFetch = lib.removeAttrs sourceInfo [
+    "pnpmDepsHash"
+    "releaseTag"
+    "releaseVersion"
+  ];
 
   # Prefer nixpkgs' platform mapping instead of hand-rolled arch/platform.
   pnpmPlatform = stdenv.hostPlatform.node.platform;
@@ -73,9 +77,11 @@ let
     npm_config_python = python3;
     NODE_PATH = "${nodeAddonApi}/lib/node_modules:${node-gyp}/lib/node_modules";
     PNPM_DEPS = pnpmDeps;
+    OPENCLAW_BUILD_ROOT_SH = "${../scripts/build-root.sh}";
     NODE_GYP_WRAPPER_SH = "${../scripts/node-gyp-wrapper.sh}";
     GATEWAY_PREBUILD_SH = "${../scripts/gateway-prebuild.sh}";
     PATCH_BUNDLED_RUNTIME_DEPS_SCRIPT = "${../patches/stage-bundled-plugin-runtime-deps.mjs}";
+    PATCH_PUBLIC_SURFACE_HARDLINKS = "${../patches/allow-package-public-surface-hardlinks.patch}";
     PROMOTE_PNPM_INTEGRITY_SH = "${../scripts/promote-pnpm-integrity.sh}";
     REMOVE_PACKAGE_MANAGER_FIELD_SH = "${../scripts/remove-package-manager-field.sh}";
     STDENV_SETUP = "${stdenv}/setup";

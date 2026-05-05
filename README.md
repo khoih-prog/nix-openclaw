@@ -119,9 +119,11 @@ Nix is a **declarative package manager**. Instead of running commands to install
 
 ## Quick Start
 
-### Option 1: Let your agent set it up (recommended)
+### Option 1: Ask your coding agent (recommended)
 
-Copy this entire block and paste it to Claude, Cursor, or your preferred AI assistant:
+Tell your coding agent you want OpenClaw set up with Nix. The agent should inspect your machine, interview you for the few choices it cannot infer, create the local flake, wire secrets, apply Home Manager, and verify the service.
+
+Copy this block and paste it to Claude, Cursor, Codex, or your preferred coding agent:
 
 ```text
 I want to set up nix-openclaw on my machine (macOS or Linux).
@@ -134,14 +136,15 @@ What nix-openclaw is:
 - Runs as a launchd service on macOS, systemd user service on Linux
 
 What I need you to do:
-1. Check if Determinate Nix is installed (if not, install it)
-2. Create a local flake at ~/code/openclaw-local using templates/agent-first/flake.nix
-3. Create a docs dir next to the config (e.g., ~/code/openclaw-local/documents) with AGENTS.md, SOUL.md, TOOLS.md (optional: IDENTITY.md, USER.md, LORE.md, HEARTBEAT.md, PROMPTING-EXAMPLES.md)
+1. Inspect my OS, CPU architecture, shell, Home Manager setup, and whether Determinate Nix is installed
+2. Ask me only for missing choices: channel, bot/account secrets, allowed users, provider keys, and documents/identity preferences
+3. Create a local flake at ~/code/openclaw-local using templates/agent-first/flake.nix
+4. Create a docs dir next to the config (e.g., ~/code/openclaw-local/documents) with AGENTS.md, SOUL.md, TOOLS.md (optional: IDENTITY.md, USER.md, LORE.md, HEARTBEAT.md, PROMPTING-EXAMPLES.md)
    - If ~/.openclaw/workspace already has these files, adopt them into the documents dir first (use copy/rsync that dereferences symlinks, e.g. `cp -L`)
-4. Help me create a Telegram bot (@BotFather) and get my chat ID (@userinfobot)
-5. Set up secrets (bot token, Anthropic key) - plain files at ~/.secrets/ is fine
-6. Fill in the template placeholders and run home-manager switch
-7. Verify: service running, bot responds to messages
+5. Help me create or connect the channel account I choose
+6. Set up secrets (bot token, provider key) - plain files at ~/.secrets/ are fine unless I already have a secret manager
+7. Fill in the template placeholders and run home-manager switch
+8. Verify end-to-end: package builds, service is running, gateway health works, and the bot/channel responds if configured
 
 My setup:
 - OS: [macOS / Linux]
@@ -152,7 +155,7 @@ My setup:
 Reference the README and templates/agent-first/flake.nix in the repo for the module options.
 ```
 
-Your agent will install Nix, create your config, and get OpenClaw running. You just answer its questions.
+Your agent should do the setup work. You answer its short questions and confirm before it sends messages or changes external services.
 
 **What happens next:**
 1. Your agent sets everything up and runs `home-manager switch`
@@ -668,14 +671,22 @@ If you override `programs.openclaw.package`, use `pkgs.openclawPackages.withTool
 
 ### Stable release mirroring
 
-We ship a single pinned upstream stable release:
-- **Stable**: latest mirrored OpenClaw stable release tag. This is the default.
+We ship one default package: `.#openclaw`.
+
+That package tracks the newest upstream stable OpenClaw release that satisfies the full Nix package contract:
+- gateway builds on Linux and macOS
+- gateway starts and answers local health checks
+- macOS app artifact is available for the same release on Darwin
 
 Outputs:
 ```
 .#openclaw
 .#openclaw-gateway
+.#openclaw-tools
+.#openclaw-app   # Darwin only
 ```
+
+`.#openclaw-gateway`, `.#openclaw-tools`, and `.#openclaw-app` are component outputs for modules, CI, debugging, and advanced use. Start with `.#openclaw`.
 
 Pins live in:
 - `nix/sources/openclaw-source.nix`
@@ -689,11 +700,11 @@ Pins live in:
 
 ### Automated pipeline
 
-1) Hourly **Yolo Update Pins** polls the newest non-prerelease OpenClaw GitHub release.
-2) If the pinned stable release already matches that newest stable release, it exits cleanly.
-3) If the newest stable release is missing the required public macOS release zip, yolo fails red and leaves the current pin untouched.
-4) If the newest stable release is complete, yolo materializes the source pin from the release tag ref, updates the app asset pin from the matching release zip, and regenerates config options from that same release source.
-5) Yolo then validates that exact release on the same Linux + macOS contract as repository `CI`.
+1) Hourly **Yolo Update Pins** polls upstream stable OpenClaw releases.
+2) It selects the newest stable release that satisfies the full Nix package contract.
+3) Newer stable releases that lack public macOS app assets are reported as skipped, not promoted.
+4) Yolo materializes the source pin from the selected release tag ref, updates the app asset pin from the matching release zip, and regenerates config options from that same release source.
+5) Yolo validates that exact release on the same Linux + macOS contract as repository `CI`.
 6) Only after both validations pass does yolo push one release-mirroring commit to `main`.
 
 ---
@@ -730,10 +741,10 @@ home-manager switch --rollback  # revert
 
 | Package | Contents |
 | --- | --- |
-| `openclaw` (default) | macOS: gateway + app + tools · Linux: gateway + tools (headless) |
-| `openclaw-gateway` | Gateway CLI only |
-| `openclaw-tools` | Toolchain bundle (gateway helpers + CLIs) |
-| `openclaw-app` | macOS app only |
+| `openclaw` (default) | Canonical package. macOS: gateway + app + tools. Linux: gateway + tools. |
+| `openclaw-gateway` | Component output: gateway CLI/service only |
+| `openclaw-tools` | Component output: toolchain bundle |
+| `openclaw-app` | Component output: macOS app only |
 
 ### What we manage vs what you manage
 

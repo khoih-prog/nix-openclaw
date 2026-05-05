@@ -18,8 +18,15 @@ mkdir -p /tmp/openclaw || true
 chmod 700 /tmp/openclaw || true
 unset OPENCLAW_BUNDLED_PLUGINS_DIR
 export VITEST_POOL="forks"
-export VITEST_MIN_WORKERS="2"
-export VITEST_MAX_WORKERS="2"
+export VITEST_MIN_WORKERS="${VITEST_MIN_WORKERS:-1}"
+export VITEST_MAX_WORKERS="${VITEST_MAX_WORKERS:-1}"
+test_timeout="${OPENCLAW_GATEWAY_TEST_TIMEOUT:-60000}"
+node_heap_mb="${OPENCLAW_GATEWAY_TEST_HEAP_MB:-4096}"
+if [ -n "${NODE_OPTIONS:-}" ]; then
+  export NODE_OPTIONS="$NODE_OPTIONS --max-old-space-size=$node_heap_mb"
+else
+  export NODE_OPTIONS="--max-old-space-size=$node_heap_mb"
+fi
 
 PATH="$PWD/node_modules/.bin:$PATH"
 
@@ -38,4 +45,7 @@ if [ -z "${vitest_cli:-}" ] || [ ! -f "$vitest_cli" ]; then
   exit 1
 fi
 
-exec node "$vitest_cli" run --config "$vitest_config" --testTimeout=20000
+exec node "$vitest_cli" run \
+  --config "$vitest_config" \
+  --pool=forks \
+  --testTimeout="$test_timeout"

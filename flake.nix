@@ -75,16 +75,21 @@
               config-validity = pkgs.callPackage ./nix/checks/openclaw-config-validity.nix {
                 openclawGateway = packageSetStable.openclaw-gateway;
               };
+              gateway-smoke = pkgs.callPackage ./nix/checks/openclaw-gateway-smoke.nix {
+                openclawGateway = packageSetStable.openclaw-gateway;
+              };
             }
             // (
               if pkgs.stdenv.hostPlatform.isLinux then
+                let
+                  sourceChecks = pkgs.callPackage ./nix/checks/openclaw-source-checks.nix {
+                    sourceInfo = sourceInfoStable;
+                    openclawGateway = packageSetStable.openclaw-gateway;
+                  };
+                in
                 {
-                  gateway-tests = pkgs.callPackage ./nix/checks/openclaw-gateway-tests.nix {
-                    sourceInfo = sourceInfoStable;
-                  };
-                  config-options = pkgs.callPackage ./nix/checks/openclaw-config-options.nix {
-                    sourceInfo = sourceInfoStable;
-                  };
+                  gateway-tests = sourceChecks;
+                  config-options = sourceChecks;
                   default-instance = pkgs.callPackage ./nix/checks/openclaw-default-instance.nix { };
                   hm-activation = import ./nix/checks/openclaw-hm-activation.nix {
                     inherit pkgs home-manager;

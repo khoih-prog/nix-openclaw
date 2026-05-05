@@ -1,93 +1,103 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const configPath = process.env.OPENCLAW_CONFIG_PATH;
-const srcRoot = process.env.OPENCLAW_SRC;
+const gatewayPackage = process.env.OPENCLAW_GATEWAY;
+const expectedWorkspace = process.env.OPENCLAW_EXPECTED_WORKSPACE;
 
 if (!configPath) {
   console.error("OPENCLAW_CONFIG_PATH is not set");
   process.exit(1);
 }
 
-if (!srcRoot) {
-  console.error("OPENCLAW_SRC is not set");
+if (!gatewayPackage) {
+  console.error("OPENCLAW_GATEWAY is not set");
   process.exit(1);
 }
 
-const legacyValidationPath = path.join(srcRoot, "dist", "config", "validation.js");
-const distDir = path.join(srcRoot, "dist");
+if (!expectedWorkspace) {
+  console.error("OPENCLAW_EXPECTED_WORKSPACE is not set");
+  process.exit(1);
+}
 
-let validateConfigObject = null;
+const openclaw = path.join(gatewayPackage, "bin", "openclaw");
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "openclaw-config-validity-"));
 
-if (fs.existsSync(legacyValidationPath)) {
-  const moduleUrl = pathToFileURL(legacyValidationPath).href;
-  const legacyModule = await import(moduleUrl);
-  validateConfigObject = legacyModule.validateConfigObject;
-} else if (fs.existsSync(distDir)) {
-  const candidates = fs.readdirSync(distDir)
-    .filter((name) => name.startsWith("config-") && name.endsWith(".js"));
+try {
+  const env = {
+    ...process.env,
+    HOME: path.join(tmpDir, "home"),
+    XDG_CONFIG_HOME: path.join(tmpDir, "config"),
+    XDG_CACHE_HOME: path.join(tmpDir, "cache"),
+    XDG_DATA_HOME: path.join(tmpDir, "data"),
+    OPENCLAW_CONFIG_PATH: configPath,
+    OPENCLAW_STATE_DIR: path.join(tmpDir, "state"),
+    OPENCLAW_LOG_DIR: path.join(tmpDir, "logs"),
+    OPENCLAW_NIX_MODE: "1",
+    NO_COLOR: "1",
+  };
 
-  for (const candidate of candidates) {
-    const candidatePath = path.join(distDir, candidate);
-    const contents = fs.readFileSync(candidatePath, "utf8");
-
-    // Newer gateway bundles often only export validateConfigObjectWithPlugins (aliased),
-    // while still containing an internal validateConfigObject function.
-    if (!contents.includes("validateConfigObject") && !contents.includes("validateConfigObjectWithPlugins")) {
-      continue;
-    }
-
-    if (contents.includes("./entry.js")) {
-      continue;
-    }
-
-    const candidateModule = await import(pathToFileURL(candidatePath).href);
-
-    // Prefer the plain validator when exported.
-    if (typeof candidateModule.validateConfigObject === "function") {
-      validateConfigObject = candidateModule.validateConfigObject;
-      break;
-    }
-
-    // Fall back to the plugin-aware validator (what most bundles export today).
-    if (typeof candidateModule.validateConfigObjectWithPlugins === "function") {
-      validateConfigObject = candidateModule.validateConfigObjectWithPlugins;
-      break;
-    }
-
-    // Handle minified alias exports.
-    let match = contents.match(/validateConfigObject as ([A-Za-z0-9_$]+)/);
-    if (match && typeof candidateModule[match[1]] === "function") {
-      validateConfigObject = candidateModule[match[1]];
-      break;
-    }
-
-    match = contents.match(/validateConfigObjectWithPlugins as ([A-Za-z0-9_$]+)/);
-    if (match && typeof candidateModule[match[1]] === "function") {
-      validateConfigObject = candidateModule[match[1]];
-      break;
-    }
+  for (const key of [
+    "HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "OPENCLAW_STATE_DIR",
+    "OPENCLAW_LOG_DIR",
+  ]) {
+    fs.mkdirSync(env[key], { recursive: true });
   }
-}
 
-if (typeof validateConfigObject !== "function") {
-  console.error(`Missing validation module: ${legacyValidationPath}`);
-  process.exit(1);
-}
+  const validate = spawnSync(openclaw, ["config", "validate", "--json"], {
+    env,
+    encoding: "utf8",
+  });
 
-const raw = fs.readFileSync(configPath, "utf8");
-const parsed = JSON.parse(raw);
-
-const result = validateConfigObject(parsed);
-if (!result.ok) {
-  console.error("OpenClaw config validation failed:");
-  for (const issue of result.issues ?? []) {
-    const pathLabel = issue.path ? ` ${issue.path}` : "";
-    console.error(`- ${pathLabel}: ${issue.message}`);
+  if (validate.status !== 0) {
+    if (validate.stdout) {
+      process.stdout.write(validate.stdout);
+    }
+    if (validate.stderr) {
+      process.stderr.write(validate.stderr);
+    }
+    console.error(`openclaw config validation failed with exit code ${validate.status ?? "unknown"}`);
+    process.exit(validate.status ?? 1);
   }
-  process.exit(1);
-}
 
-console.log("openclaw config validation: ok");
+  const validation = JSON.parse(validate.stdout);
+  if (!validation || validation.valid !== true) {
+    console.error("openclaw config validation did not report valid=true");
+    process.exit(1);
+  }
+
+  const workspace = spawnSync(openclaw, ["config", "get", "agents.defaults.workspace", "--json"], {
+    env,
+    encoding: "utf8",
+  });
+
+  if (workspace.status !== 0) {
+    if (workspace.stdout) {
+      process.stdout.write(workspace.stdout);
+    }
+    if (workspace.stderr) {
+      process.stderr.write(workspace.stderr);
+    }
+    console.error(`openclaw config get failed with exit code ${workspace.status ?? "unknown"}`);
+    process.exit(workspace.status ?? 1);
+  }
+
+  const actualWorkspace = JSON.parse(workspace.stdout);
+  if (actualWorkspace !== expectedWorkspace) {
+    console.error(
+      `openclaw config returned unexpected workspace: ${JSON.stringify(actualWorkspace)} != ${JSON.stringify(expectedWorkspace)}`,
+    );
+    process.exit(1);
+  }
+
+  console.log("openclaw config validation: ok");
+} finally {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+}

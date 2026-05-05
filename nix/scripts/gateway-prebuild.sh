@@ -18,7 +18,19 @@ log_step() {
 }
 
 store_path_file="${PNPM_STORE_PATH_FILE:-.pnpm-store-path}"
-store_path="$(mktemp -d)"
+
+if [ -n "${OPENCLAW_BUILD_ROOT_SH:-}" ]; then
+  . "$OPENCLAW_BUILD_ROOT_SH"
+  openclaw_init_output_build_root
+fi
+
+if [ -n "${out:-}" ]; then
+  store_path="$out/.pnpm-store"
+  rm -rf "$store_path"
+  mkdir -p "$store_path"
+else
+  store_path="$(mktemp -d)"
+fi
 
 printf "%s" "$store_path" > "$store_path_file"
 

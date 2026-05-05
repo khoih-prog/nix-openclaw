@@ -17,6 +17,11 @@ log_step() {
   printf '>> [timing] %s: %ss\n' "$name" "$((end - start))" >&2
 }
 
+if [ -n "${OPENCLAW_BUILD_ROOT_SH:-}" ]; then
+  . "$OPENCLAW_BUILD_ROOT_SH"
+  openclaw_enter_build_root
+fi
+
 check_no_broken_symlinks() {
   root="$1"
   if [ ! -d "$root" ]; then
@@ -128,6 +133,14 @@ if [ -n "$hasown_src" ]; then
   fi
 fi
 
+if [ -n "${OPENCLAW_BUILD_ROOT_SH:-}" ]; then
+  openclaw_cleanup_output_pnpm_store
+fi
+
 log_step "validate node_modules symlinks" check_no_broken_symlinks "$out/lib/openclaw/node_modules"
 
 bash -e -c '. "$STDENV_SETUP"; makeWrapper "$NODE_BIN" "$out/bin/openclaw" --add-flags "$out/lib/openclaw/dist/index.js" --set-default OPENCLAW_NIX_MODE "1"'
+
+if [ -n "${OPENCLAW_BUILD_ROOT_SH:-}" ]; then
+  openclaw_cleanup_output_build_root
+fi

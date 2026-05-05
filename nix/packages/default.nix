@@ -26,6 +26,7 @@ let
     openclaw-gateway = openclawGateway;
     openclaw-app = openclawApp;
     extendedTools = toolSets.tools;
+    version = sourceInfo.releaseVersion or null;
   };
 in
 {
