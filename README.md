@@ -143,8 +143,9 @@ What I need you to do:
    - If ~/.openclaw/workspace already has these files, adopt them into the documents dir first (use copy/rsync that dereferences symlinks, e.g. `cp -L`)
 5. Help me create or connect the channel account I choose
 6. Set up secrets (bot token, provider key) - plain files at ~/.secrets/ are fine unless I already have a secret manager
-7. Fill in the template placeholders and run home-manager switch
-8. Verify end-to-end: package builds, service is running, gateway health works, and the bot/channel responds if configured
+7. Ask whether I want local memory through QMD; if yes, set `memory.backend = "qmd"` in OpenClaw config
+8. Fill in the template placeholders and run home-manager switch
+9. Verify end-to-end: package builds, service is running, gateway health works, QMD works if enabled, and the bot/channel responds if configured
 
 My setup:
 - OS: [macOS / Linux]
@@ -698,6 +699,20 @@ home-manager switch --rollback  # revert
 | `openclaw-gateway` | Component output: gateway CLI/service only |
 | `openclaw-app` | Component output: macOS app only |
 
+### Local memory
+
+`openclaw` includes QMD internally as the supported local memory backend. It is not enabled automatically.
+
+Opt in through normal OpenClaw config:
+
+```nix
+programs.openclaw.config = {
+  memory.backend = "qmd";
+};
+```
+
+QMD stays inside the `openclaw` wrapper PATH, so users do not need to install a separate `qmd` command. The builtin `memorySearch.provider = "local"` path is an escape hatch for people who want to manage `node-llama-cpp` themselves; it is not the primary Nix-supported path.
+
 ### What we manage vs what you manage
 
 | Component | Nix manages | You manage |
@@ -705,7 +720,7 @@ home-manager switch --rollback  # revert
 | Gateway binary | ✓ | |
 | macOS app | ✓ | |
 | Service (launchd/systemd) | ✓ | |
-| Tools (whisper, etc) | ✓ | |
+| Runtime tools and QMD | ✓ | |
 | Telegram bot token | | ✓ |
 | Anthropic API key | | ✓ |
 | Chat IDs | | ✓ |
@@ -717,6 +732,8 @@ home-manager switch --rollback  # revert
 The default `openclaw` package uses these tools internally and does not expose them as separate user commands.
 
 **Core**: nodejs, pnpm, git, curl, jq, python3, ffmpeg, sox, ripgrep
+
+**Local memory**: QMD (`memory.backend = "qmd"` opt-in)
 
 **Default first-party tools** come from `nix-openclaw-tools`: gogcli (`gog`), goplaces, summarize, camsnap, sonoscli.
 

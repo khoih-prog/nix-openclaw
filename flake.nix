@@ -14,6 +14,9 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     nix-openclaw-tools.url = "github:openclaw/nix-openclaw-tools";
+    qmd.url = "github:tobi/qmd/v2.1.0";
+    qmd.inputs.flake-utils.follows = "flake-utils";
+    qmd.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -23,6 +26,7 @@
       flake-utils,
       home-manager,
       nix-openclaw-tools,
+      qmd,
     }:
     let
       openclawToolPkgsFor =
@@ -31,10 +35,17 @@
           nix-openclaw-tools.packages.${system}
         else
           { };
+      qmdPkgsFor =
+        system:
+        if qmd ? packages && builtins.hasAttr system qmd.packages then
+          qmd.packages.${system}
+        else
+          { };
       overlay =
         final: prev:
         import ./nix/overlay.nix {
           openclawToolPkgs = openclawToolPkgsFor prev.stdenv.hostPlatform.system;
+          qmdPkgs = qmdPkgsFor prev.stdenv.hostPlatform.system;
         } final prev;
       sourceInfoStable = import ./nix/sources/openclaw-source.nix;
       systems = [
@@ -50,10 +61,12 @@
           overlays = [ overlay ];
         };
         openclawToolPkgs = openclawToolPkgsFor system;
+        qmdPkgs = qmdPkgsFor system;
         packageSetStable = import ./nix/packages {
           pkgs = pkgs;
           sourceInfo = sourceInfoStable;
           openclawToolPkgs = openclawToolPkgs;
+          qmdPackage = qmdPkgs.qmd or qmdPkgs.default or null;
         };
       in
       {
@@ -68,7 +81,7 @@
         };
 
         apps = {
-          openclaw = flake-utils.lib.mkApp { drv = packageSetStable.openclaw-gateway; };
+          openclaw = flake-utils.lib.mkApp { drv = packageSetStable.openclaw; };
         };
 
         checks =
@@ -86,6 +99,10 @@
               };
               gateway-smoke = pkgs.callPackage ./nix/checks/openclaw-gateway-smoke.nix {
                 openclawGateway = packageSetStable.openclaw-gateway;
+              };
+              qmd-runtime = pkgs.callPackage ./nix/checks/openclaw-qmd-runtime.nix {
+                openclawPackage = packageSetStable.openclaw;
+                qmdPackage = qmdPkgs.qmd or qmdPkgs.default or null;
               };
             }
             // (

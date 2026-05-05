@@ -88,12 +88,37 @@
         "type": "github"
       }
     },
+    "qmd": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1775429264,
+        "narHash": "sha256-bqIVaNRTa8H5vrw3RwsD7QdtTa0xNvRuEVzlzE1hIBQ=",
+        "owner": "tobi",
+        "repo": "qmd",
+        "rev": "65cd1b3fd02891d1ee0eefa751620918664fa321",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tobi",
+        "ref": "v2.1.0",
+        "repo": "qmd",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
         "home-manager": "home-manager",
         "nix-openclaw-tools": "nix-openclaw-tools",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_2",
+        "qmd": "qmd"
       }
     },
     "systems": {

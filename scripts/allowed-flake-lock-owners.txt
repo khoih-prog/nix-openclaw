@@ -4,3 +4,4 @@ openclaw/nix-openclaw-tools
 nix-community/home-manager
 nix-systems/default
 numtide/flake-utils
+tobi/qmd

@@ -2,6 +2,7 @@
   pkgs,
   sourceInfo ? import ../sources/openclaw-source.nix,
   openclawToolPkgs ? { },
+  qmdPackage ? null,
   toolNamesOverride ? null,
   excludeToolNames ? [ ],
 }:
@@ -21,6 +22,7 @@ let
     openclaw-gateway = openclawGateway;
     openclaw-app = openclawApp;
     extendedTools = toolSets.tools;
+    inherit qmdPackage;
     version = sourceInfo.releaseVersion or null;
   };
 in

@@ -5,13 +5,15 @@
   openclaw-gateway,
   openclaw-app ? null,
   extendedTools ? [ ],
+  qmdPackage ? null,
   version ? null,
 }:
 
 let
   bundleVersion =
     if version != null && version != "" then version else lib.getVersion openclaw-gateway;
-  toolsPath = lib.makeBinPath extendedTools;
+  runtimeTools = extendedTools ++ lib.optional (qmdPackage != null) qmdPackage;
+  toolsPath = lib.makeBinPath runtimeTools;
 in
 stdenvNoCC.mkDerivation {
   pname = "openclaw";
