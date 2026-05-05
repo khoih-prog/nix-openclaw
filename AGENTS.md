@@ -49,6 +49,12 @@ Defaults:
 - NEVER send any message (iMessage, email, SMS, etc.) without explicit user confirmation:
   - Always show the full message text and ask: “I’m going to send this: <message>. Send? (y/n)”
 
+Git workflow:
+- Trunk-based development: work on `main` by default and push small, surgical commits directly to `main`.
+- Use branches only when Josh explicitly asks, direct push is blocked, or a disposable local experiment is needed.
+- For multi-issue work, commit and push one issue at a time; verify GitHub Actions for each pushed commit before continuing to the next issue.
+- Do not leave completed maintainer work parked on a Codex branch.
+
 OpenClaw packaging:
 - The gateway package must include Control UI assets (run `pnpm ui:build` in the Nix build).
 - Product intent: ship a working Nix package for OpenClaw users, not just a pin mirror. `openclaw-gateway` is the source-built runnable gateway for Linux and macOS; `openclaw-app` is the Darwin-only desktop app from upstream's signed/notarized app artifact; `openclaw` is the batteries-included bundle.
