@@ -4,13 +4,13 @@
 >
 > macOS + Linux (headless). Windows is out of scope for now.
 >
-> <sub>Questions? Join the OpenClaw Discord and ask in **#golden-path-deployments**: https://discord.com/channels/1456350064065904867/1457003026412736537</sub>
+> <sub>Questions? Join the OpenClaw Discord at https://discord.gg/clawd and ask in **#golden-path-deployments**.</sub>
 
 ## Contributions (read this first)
 
 We’re **not accepting PRs** right now. Not because we don’t value your help — the opposite. This is key infra and still stabilizing, and async PR review is too slow.
 
-**Only workflow:** **describe your problem and talk with a maintainer (human‑to‑human) on Discord** in **#golden-path-deployments**: https://discord.com/channels/1456350064065904867/1457003026412736537
+**Only workflow:** **describe your problem and talk with a maintainer (human‑to‑human) on Discord**. Join at https://discord.gg/clawd, then use **#golden-path-deployments**.
 
 If you’re **not listed as a maintainer** (see [AGENTS.md#maintainers](AGENTS.md#maintainers) or https://github.com/orgs/openclaw/people), **do not open a PR**. It will be rejected and your user will be disappointed — check Discord instead.
 
@@ -68,12 +68,12 @@ You talk to Telegram, your machine does things.
 
 ## Requirements
 
-1. **macOS** (Apple Silicon or Intel) or **Linux** (x86_64)
-2. **[Determinate Nix](https://docs.determinate.systems/determinate-nix/)** installed on your machine
+1. **macOS** (Apple Silicon) or **Linux** (x86_64)
+2. **Nix with flakes enabled** installed on your machine
 
 That's it. The Quick Start will guide you through everything else.
 
-> **Don't have Nix yet?** Follow the Determinate Nix install guide, then come back here.
+> **Don't have Nix yet?** Use the [Determinate Nix installer](https://docs.determinate.systems/determinate-nix/) or the [official Nix installer](https://nixos.org/download/), then come back here.
 
 ---
 
@@ -126,7 +126,7 @@ Tell your coding agent you want OpenClaw set up with Nix. The agent should inspe
 Copy this block and paste it to Claude, Cursor, Codex, or your preferred coding agent:
 
 ```text
-I want to set up nix-openclaw on my machine (macOS or Linux).
+I want to set up nix-openclaw on my machine (Apple Silicon macOS or x86_64 Linux).
 
 Repository: github:openclaw/nix-openclaw
 
@@ -136,7 +136,7 @@ What nix-openclaw is:
 - Runs as a launchd service on macOS, systemd user service on Linux
 
 What I need you to do:
-1. Inspect my OS, CPU architecture, shell, Home Manager setup, and whether Determinate Nix is installed
+1. Inspect my OS, CPU architecture, shell, Home Manager setup, and whether Nix with flakes is installed
 2. Ask me only for missing choices: channel, bot/account secrets, allowed users, provider keys, and documents/identity preferences
 3. Create a local flake at ~/code/openclaw-local using templates/agent-first/flake.nix
 4. Create a docs dir next to the config (e.g., ~/code/openclaw-local/documents) with AGENTS.md, SOUL.md, TOOLS.md (optional: IDENTITY.md, USER.md, LORE.md, HEARTBEAT.md, PROMPTING-EXAMPLES.md)
@@ -149,7 +149,7 @@ What I need you to do:
 My setup:
 - OS: [macOS / Linux]
 - CPU: [arm64 / x86_64]
-- System: [aarch64-darwin / x86_64-darwin / x86_64-linux]
+- System: [aarch64-darwin / x86_64-linux]
 - Home Manager config name: [FILL IN or "I don't have Home Manager yet"]
 
 Reference the README and templates/agent-first/flake.nix in the repo for the module options.
@@ -168,16 +168,17 @@ Your agent should do the setup work. You answer its short questions and confirm 
 
 ### macOS (Home Manager + launchd)
 
-1. Install Determinate Nix.
+1. Install Nix with flakes enabled.
 2. Create a local config:
    ```bash
    mkdir -p ~/code/openclaw-local && cd ~/code/openclaw-local
    nix flake init -t github:openclaw/nix-openclaw#agent-first
    ```
 3. Edit `flake.nix` placeholders:
-   - `system` = `aarch64-darwin` (Apple Silicon) or `x86_64-darwin` (Intel)
+   - `system` = `aarch64-darwin`
    - `home.username` and `home.homeDirectory`
    - `programs.openclaw.documents` with `AGENTS.md`, `SOUL.md`, `TOOLS.md` (optional: `IDENTITY.md`, `USER.md`, `LORE.md`, `HEARTBEAT.md`, `PROMPTING-EXAMPLES.md`)
+     - Keep this directory inside the flake, or make sure the Nix daemon can read it and traverse every parent directory.
    - Provider secrets (Telegram/Discord tokens, Anthropic API key)
 4. Apply:
    ```bash
@@ -190,7 +191,7 @@ Your agent should do the setup work. You answer its short questions and confirm 
 
 ### Linux (headless + systemd user service)
 
-1. Install Determinate Nix.
+1. Install Nix with flakes enabled.
 2. Create a local config:
    ```bash
    mkdir -p ~/code/openclaw-local && cd ~/code/openclaw-local
@@ -200,6 +201,7 @@ Your agent should do the setup work. You answer its short questions and confirm 
    - `system` = `x86_64-linux`
    - `home.username` and `home.homeDirectory` (e.g., `/home/<user>`)
    - `programs.openclaw.documents` with `AGENTS.md`, `SOUL.md`, `TOOLS.md` (optional: `IDENTITY.md`, `USER.md`, `LORE.md`, `HEARTBEAT.md`, `PROMPTING-EXAMPLES.md`)
+     - Keep this directory inside the flake, or make sure the Nix daemon can read it and traverse every parent directory.
    - Provider secrets (Telegram/Discord tokens, Anthropic API key)
 4. Apply:
    ```bash
@@ -265,13 +267,14 @@ Toggle them in your config:
 ```nix
 programs.openclaw.bundledPlugins = {
   summarize.enable = true;   # Summarize web pages, PDFs, videos
+  discrawl.enable = false;    # Discord archive/search
+  wacrawl.enable = false;     # WhatsApp archive/search
   peekaboo.enable = true;    # Take screenshots
-  poltergeist.enable = false; # Control your macOS UI
+  poltergeist.enable = false; # File watching and automation
   sag.enable = false;        # Text-to-speech
   camsnap.enable = false;    # Camera snapshots
   gogcli.enable = false;     # Google Calendar
   goplaces.enable = true;    # Google Places API
-  bird.enable = false;       # Twitter/X
   sonoscli.enable = false;   # Sonos control
   imsg.enable = false;       # iMessage
 };
@@ -286,13 +289,14 @@ programs.openclaw.bundledPlugins.goplaces = {
 | Plugin | What it does |
 |--------|--------------|
 | `summarize` | Summarize URLs, PDFs, YouTube videos |
+| `discrawl` | Archive and search Discord history |
+| `wacrawl` | Archive and search WhatsApp Desktop history |
 | `peekaboo` | Screenshot your screen |
-| `poltergeist` | Click, type, control macOS UI |
+| `poltergeist` | File watching and automation |
 | `sag` | Text-to-speech |
 | `camsnap` | Take photos from connected cameras |
 | `gogcli` | Google Calendar integration |
 | `goplaces` | Google Places API (New) CLI |
-| `bird` | Twitter/X integration |
 | `sonoscli` | Control Sonos speakers |
 | `imsg` | Send/read iMessages |
 
@@ -573,67 +577,39 @@ Uses `instances.default` to unlock per-group mention rules. If `instances` is se
 
 ### Dual-instance setup (prod + dev)
 
-Use a shared base config and override only what's different. After changing local plugin or gateway code, re-run `home-manager switch` to rebuild.
+Use named instances when you need two local gateways. Keep the default package unless you are actively debugging a local gateway checkout.
 
 ```nix
-# flake inputs (pin prod + app)
-inputs = {
-  nix-openclaw.url = "github:openclaw/nix-openclaw?ref=v0.1.0"; # pins macOS app + gateway bundle
-};
+programs.openclaw = {
+  documents = ./documents;
 
-let
-  prodConfig = {
-    channels.telegram = {
-      tokenFile = "/run/agenix/telegram-prod";
-      allowFrom = [ 12345678 ];
+  instances = {
+    prod = {
+      enable = true;
+      gatewayPort = 18789;
+      config.channels.telegram = {
+        tokenFile = "/run/agenix/telegram-prod";
+        allowFrom = [ 12345678 ];
+      };
+      plugins = [
+        { source = "github:owner/your-plugin?rev=<commit>&narHash=<narHash>"; }
+      ];
     };
-  };
-  devConfig = {
-    channels.telegram = {
-      tokenFile = "/run/agenix/telegram-dev";
-      allowFrom = [ 12345678 ];
-    };
-  };
-  prod = {
-    enable = true;
-    # Prod gateway pin (comes from nix-openclaw input @ v0.1.0 above).
-    package = inputs.nix-openclaw.packages.${pkgs.system}.openclaw-gateway;
-    config = prodConfig;
-    plugins = [ { source = "github:owner/your-plugin?rev=<commit>&narHash=<narHash>"; } ];
-  };
-in {
-  # Pinned macOS app (POC: no local app builds, uses nix-openclaw @ v0.1.0 above).
-  programs.openclaw.appPackage =
-    inputs.nix-openclaw.packages.${pkgs.system}.openclaw-app;
-  programs.openclaw.documents = ./documents;
-  programs.openclaw.instances = {
-    prod = prod;
-    dev = prod // {
-      # Dev uses the same pinned macOS app (from nix-openclaw input),
-      # but overrides the gateway package to a local checkout.
-      config = devConfig;
+
+    dev = {
+      enable = true;
       gatewayPort = 18790;
-      # Local gateway checkout (path). App stays pinned.
       gatewayPath = "/Users/you/code/openclaw";
-      # Local plugin overrides prod if names collide (last wins).
-      plugins = prod.plugins ++ [
+      config.channels.telegram = {
+        tokenFile = "/run/agenix/telegram-dev";
+        allowFrom = [ 12345678 ];
+      };
+      plugins = [
         { source = "path:/Users/you/code/your-plugin"; }
-        {
-          source = "github:joshp123/padel-cli?rev=<commit>&narHash=<narHash>";
-          config = {
-            env = { PADEL_AUTH_FILE = "/run/agenix/padel-auth-dev"; };
-            settings = {
-              default_location = "CITY_NAME";
-              preferred_times = [ "18:00" ];
-              preferred_duration = 90;
-              venues = [];
-            };
-          };
-        }
       ];
     };
   };
-}
+};
 ```
 
 ### Plugin collisions
@@ -759,17 +735,11 @@ home-manager switch --rollback  # revert
 
 > **Platform note:** the toolchain is filtered per platform. macOS-only tools are skipped on Linux.
 
-**Core**: nodejs, pnpm, git, curl, jq, python3, ffmpeg, ripgrep
+**Core**: nodejs, pnpm, git, curl, jq, python3, ffmpeg, sox, ripgrep
 
-**First‑party tools** are sourced from `nix-steipete-tools` when available (currently aarch64‑darwin).
+**Default first-party tools** come from `nix-openclaw-tools`: gogcli (`gog`), goplaces, summarize, camsnap, sonoscli.
 
-**AI/ML**: openai-whisper, sag (TTS)
-
-**Media**: spotify-player, sox, camsnap
-
-**macOS**: peekaboo, blucli
-
-**Integrations**: gogcli, goplaces, wacli, bird, mcporter
+**Optional bundled plugins** add their own packages when enabled: discrawl, wacrawl, peekaboo, poltergeist, sag, imsg.
 
 ---
 
