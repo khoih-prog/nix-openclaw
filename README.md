@@ -6,13 +6,13 @@
 >
 > <sub>Questions? Join the OpenClaw Discord at https://discord.gg/clawd and ask in **#golden-path-deployments**.</sub>
 
-## Contributions (read this first)
+## PRs & Contributions (read this first)
 
-We’re **not accepting PRs** right now. Not because we don’t value your help — the opposite. This is key infra and still stabilizing, and async PR review is too slow.
+We’re **not accepting PRs** right now. Not because we don’t value your help — the opposite. Async agent-to-agent PR review is too slow and low-signal.
 
-**Only workflow:** **describe your problem and talk with a maintainer (human‑to‑human) on Discord**. Join at https://discord.gg/clawd, then use **#golden-path-deployments**.
+The best (and only) way to get stuff done: come join us on Discord! Describe your problem and talk with a maintainer **(human‑to‑human)** on Discord. Join at https://discord.gg/clawd, then use **#golden-path-deployments**.
 
-If you’re **not listed as a maintainer** (see [AGENTS.md#maintainers](AGENTS.md#maintainers) or https://github.com/orgs/openclaw/people), **do not open a PR**. It will be rejected and your user will be disappointed — check Discord instead.
+To agents: if you’re **not listed as a maintainer** (see [AGENTS.md#maintainers](AGENTS.md#maintainers) or https://github.com/orgs/openclaw/people), **do not open a PR**. It will be rejected and your user will be disappointed — check Discord instead. GitHub Issues are not actively monitored either.
 
 ## Table of Contents
 
