@@ -37,10 +37,7 @@
           { };
       qmdPkgsFor =
         system:
-        if qmd ? packages && builtins.hasAttr system qmd.packages then
-          qmd.packages.${system}
-        else
-          { };
+        if qmd ? packages && builtins.hasAttr system qmd.packages then qmd.packages.${system} else { };
       overlay =
         final: prev:
         import ./nix/overlay.nix {
@@ -62,11 +59,13 @@
         };
         openclawToolPkgs = openclawToolPkgsFor system;
         qmdPkgs = qmdPkgsFor system;
+        qmdPackage =
+          if pkgs.stdenv.hostPlatform.isDarwin then null else qmdPkgs.qmd or qmdPkgs.default or null;
         packageSetStable = import ./nix/packages {
           pkgs = pkgs;
           sourceInfo = sourceInfoStable;
           openclawToolPkgs = openclawToolPkgs;
-          qmdPackage = qmdPkgs.qmd or qmdPkgs.default or null;
+          inherit qmdPackage;
         };
       in
       {
@@ -100,9 +99,11 @@
               gateway-smoke = pkgs.callPackage ./nix/checks/openclaw-gateway-smoke.nix {
                 openclawGateway = packageSetStable.openclaw-gateway;
               };
+            }
+            // pkgs.lib.optionalAttrs (qmdPackage != null) {
               qmd-runtime = pkgs.callPackage ./nix/checks/openclaw-qmd-runtime.nix {
                 openclawPackage = packageSetStable.openclaw;
-                qmdPackage = qmdPkgs.qmd or qmdPkgs.default or null;
+                inherit qmdPackage;
               };
             }
             // (
