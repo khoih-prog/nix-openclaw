@@ -15,6 +15,7 @@ permissions:
 jobs:
   select:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       has_update: ${{ steps.select.outputs.has_update }}
       release_tag: ${{ steps.select.outputs.release_tag }}
@@ -61,6 +62,7 @@ jobs:
     needs: select
     if: needs.select.outputs.has_update == 'true'
     runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 60
     outputs:
       materialization_digest: ${{ steps.materialization.outputs.materialization_digest }}
     steps:
@@ -97,7 +99,7 @@ jobs:
         run: scripts/check-flake-lock-owners.sh
 
       - name: Run Linux CI aggregator
-        run: nix build .#checks.x86_64-linux.ci --accept-flake-config
+        run: timeout --foreground 50m nix build .#checks.x86_64-linux.ci --accept-flake-config
 
       - name: Dump failing gateway test log
         if: failure()
@@ -109,6 +111,7 @@ jobs:
     needs: select
     if: needs.select.outputs.has_update == 'true'
     runs-on: macos-14
+    timeout-minutes: 40
     outputs:
       materialization_digest: ${{ steps.materialization.outputs.materialization_digest }}
     steps:
@@ -142,9 +145,11 @@ jobs:
           echo "materialization_digest=${digest}" >> "$GITHUB_OUTPUT"
 
       - name: Build Darwin CI aggregator
+        timeout-minutes: 25
         run: nix build .#checks.aarch64-darwin.ci --accept-flake-config
 
       - name: Run HM activation
+        timeout-minutes: 10
         run: scripts/hm-activation-macos.sh
 
   promote:
@@ -154,6 +159,7 @@ jobs:
       - validate-macos
     if: needs.select.outputs.has_update == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
