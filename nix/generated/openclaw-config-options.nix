@@ -3781,7 +3781,7 @@ in
   };
 
   channels = lib.mkOption {
-    type = t.nullOr (t.submodule { options = {
+    type = t.nullOr (t.submodule { freeformType = t.attrsOf t.anything; options = {
     defaults = lib.mkOption {
       type = t.nullOr (t.submodule { options = {
       contextVisibility = lib.mkOption {

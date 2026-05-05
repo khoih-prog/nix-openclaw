@@ -57,6 +57,8 @@ Git workflow:
 
 OpenClaw packaging:
 - The gateway package must include Control UI assets (run `pnpm ui:build` in the Nix build).
+- Nix mode means Nix owns `openclaw.json`. Runtime config mutation belongs upstream in OpenClaw; downstream patches here must be small, temporary, and removed after the pinned upstream release contains the fix.
+- Generated config options come from the upstream core schema. Plugin-owned extension surfaces, such as `channels.<plugin-id>`, must remain accepted by the Home Manager module even when core does not type every plugin key.
 - Product intent: ship a working Nix package for OpenClaw users, not just a pin mirror. `openclaw-gateway` is the source-built runnable gateway for Linux and macOS; `openclaw-app` is the Darwin-only desktop app from upstream's signed/notarized app artifact; `openclaw` is the batteries-included bundle.
 - User-facing docs should lead with one package: `openclaw`. Treat `openclaw-gateway` and `openclaw-app` as advanced/component outputs for checks, modules, and debugging, not separate product tracks. Runtime tools are internal implementation detail, not a public package surface.
 - QMD is the Nix-supported batteries-included local memory backend. Keep `qmd` internal to the `openclaw` wrapper PATH; users opt in with upstream config (`memory.backend = "qmd"`). Do not make builtin `memorySearch.provider = "local"` / `node-llama-cpp` the primary supported path.

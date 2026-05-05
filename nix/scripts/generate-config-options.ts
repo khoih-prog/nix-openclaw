@@ -130,16 +130,16 @@ const stripNullable = (schemaObj: JsonSchema): { schema: JsonSchema; nullable: b
   return { schema, nullable: false };
 };
 
-const typeForSchema = (schemaObj: JsonSchema, indent: string): string => {
+const typeForSchema = (schemaObj: JsonSchema, indent: string, pathSegments: string[] = []): string => {
   const { schema, nullable } = stripNullable(schemaObj);
-  const typeExpr = baseTypeForSchema(schema, indent);
+  const typeExpr = baseTypeForSchema(schema, indent, pathSegments);
   if (nullable) {
     return `t.nullOr (${typeExpr})`;
   }
   return typeExpr;
 };
 
-const baseTypeForSchema = (schemaObj: JsonSchema, indent: string): string => {
+const baseTypeForSchema = (schemaObj: JsonSchema, indent: string, pathSegments: string[]): string => {
   const schema = deref(schemaObj, new Set());
   if (schema.const !== undefined) {
     return `t.enum [ ${nixLiteral(schema.const)} ]`;
@@ -153,7 +153,7 @@ const baseTypeForSchema = (schemaObj: JsonSchema, indent: string): string => {
     const entries = schema.anyOf as JsonSchema[];
     const objectUnion = objectUnionTypeForSchemas(entries, indent);
     if (objectUnion) return objectUnion;
-    const parts = entries.map((entry) => `(${typeForSchema(entry, indent)})`).join(" ");
+    const parts = entries.map((entry) => `(${typeForSchema(entry, indent, pathSegments)})`).join(" ");
     return `t.oneOf [ ${parts} ]`;
   }
 
@@ -161,7 +161,7 @@ const baseTypeForSchema = (schemaObj: JsonSchema, indent: string): string => {
     const entries = schema.oneOf as JsonSchema[];
     const objectUnion = objectUnionTypeForSchemas(entries, indent);
     if (objectUnion) return objectUnion;
-    const parts = entries.map((entry) => `(${typeForSchema(entry, indent)})`).join(" ");
+    const parts = entries.map((entry) => `(${typeForSchema(entry, indent, pathSegments)})`).join(" ");
     return `t.oneOf [ ${parts} ]`;
   }
 
@@ -172,7 +172,7 @@ const baseTypeForSchema = (schemaObj: JsonSchema, indent: string): string => {
   const schemaType = schema.type;
   if (Array.isArray(schemaType) && schemaType.length > 0) {
     const parts = schemaType
-      .map((entry) => `(${typeForSchema({ type: entry }, indent)})`)
+      .map((entry) => `(${typeForSchema({ type: entry }, indent, pathSegments)})`)
       .join(" ");
     return `t.oneOf [ ${parts} ]`;
   }
@@ -188,13 +188,13 @@ const baseTypeForSchema = (schemaObj: JsonSchema, indent: string): string => {
       return "t.bool";
     case "array": {
       const items = (schema.items as JsonSchema) || {};
-      return `t.listOf (${typeForSchema(items, indent)})`;
+      return `t.listOf (${typeForSchema(items, indent, pathSegments)})`;
     }
     case "object":
-      return objectTypeForSchema(schema, indent);
+      return objectTypeForSchema(schema, indent, pathSegments);
     case undefined:
       if (schema.properties || schema.additionalProperties) {
-        return objectTypeForSchema(schema, indent);
+        return objectTypeForSchema(schema, indent, pathSegments);
       }
       return "t.anything";
     default:
@@ -264,7 +264,10 @@ const objectUnionTypeForSchemas = (entries: JsonSchema[], indent: string): strin
   return `t.submodule { options = {\n${inner}\n${indent}}; }`;
 };
 
-const objectTypeForSchema = (schema: JsonSchema, indent: string): string => {
+const allowsPluginChannelConfigs = (pathSegments: string[]): boolean =>
+  pathSegments.length === 1 && pathSegments[0] === "channels";
+
+const objectTypeForSchema = (schema: JsonSchema, indent: string, pathSegments: string[]): string => {
   const properties = (schema.properties as Record<string, JsonSchema>) || {};
   const requiredList = new Set((schema.required as string[]) || []);
   const keys = Object.keys(properties);
@@ -283,18 +286,29 @@ const objectTypeForSchema = (schema: JsonSchema, indent: string): string => {
   const nextIndent = `${indent}  `;
   const inner = keys
     .sort()
-    .map((key) => renderOption(key, properties[key], requiredList.has(key), nextIndent))
+    .map((key) =>
+      renderOption(key, properties[key], requiredList.has(key), nextIndent, [...pathSegments, key])
+    )
     .join("\n");
+  const freeform = allowsPluginChannelConfigs(pathSegments)
+    ? " freeformType = t.attrsOf t.anything;"
+    : "";
 
-  return `t.submodule { options = {\n${inner}\n${indent}}; }`;
+  return `t.submodule {${freeform} options = {\n${inner}\n${indent}}; }`;
 };
 
-const renderOption = (key: string, schemaObj: JsonSchema, required: boolean, indent: string): string => {
+const renderOption = (
+  key: string,
+  schemaObj: JsonSchema,
+  required: boolean,
+  indent: string,
+  pathSegments: string[] = [key]
+): string => {
   const schema = deref(schemaObj, new Set());
   const description = typeof schema.description === "string" ? schema.description : null;
   const hasSchemaDefault = schema.default !== undefined;
   const effectiveRequired = required && !hasSchemaDefault;
-  const baseTypeExpr = typeForSchema(schema, indent);
+  const baseTypeExpr = typeForSchema(schema, indent, pathSegments);
   const typeExpr =
     !effectiveRequired && !baseTypeExpr.startsWith("t.nullOr")
       ? `t.nullOr (${baseTypeExpr})`

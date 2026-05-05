@@ -75,6 +75,15 @@ let
               systemd.enable = false;
               instances.default = {
                 workspaceDir = expectedWorkspace;
+                config = {
+                  channels.telegram = {
+                    enabled = true;
+                    botToken = "123456:test-token";
+                    dmPolicy = "open";
+                    groupPolicy = "disabled";
+                    allowFrom = [ "*" ];
+                  };
+                };
               };
             };
           };
