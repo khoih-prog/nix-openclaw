@@ -5,6 +5,17 @@
 }:
 
 let
+  testLib = lib.extend (
+    _final: _prev: {
+      hm.dag = {
+        entryAfter = after: data: {
+          inherit after data;
+          before = [ ];
+        };
+      };
+    }
+  );
+
   lockedPathFlake =
     name: path: narHash:
     let
@@ -76,7 +87,7 @@ let
 
   moduleEval =
     openclawConfig:
-    lib.evalModules {
+    testLib.evalModules {
       modules = [
         stubModule
         ../modules/home-manager/openclaw.nix
@@ -137,7 +148,9 @@ let
     ];
   };
   customPluginSkill = ".openclaw/workspace/skills/skill";
-  hasCustomPluginSkill = builtins.hasAttr customPluginSkill customPluginEval.config.home.file;
+  customPluginTarget = "/tmp/${customPluginSkill}";
+  customPluginActivation = builtins.toJSON customPluginEval.config.home.activation.openclawWorkspaceFiles;
+  hasCustomPluginSkill = lib.hasInfix customPluginTarget customPluginActivation;
   customPluginCheck = builtins.deepSeq (requireNoAssertionFailures "customPlugins" customPluginEval) (
     if hasCustomPluginSkill then "ok" else throw "customPlugins did not install ${customPluginSkill}."
   );

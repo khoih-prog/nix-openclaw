@@ -1,5 +1,4 @@
 {
-  config,
   lib,
   pkgs,
   openclawLib,
@@ -61,12 +60,11 @@ let
         }
       ];
 
-  skillFiles =
+  skillEntries =
     let
       entriesForInstance =
         instName: inst:
         let
-          base = "${toRelative (resolvePath inst.workspaceDir)}/skills";
           entryFor =
             skill:
             let
@@ -75,44 +73,30 @@ let
             in
             if mode == "inline" then
               {
-                name = "${base}/${skill.name}/SKILL.md";
-                value = {
-                  text = renderSkill skill;
-                };
+                source = pkgs.writeText "openclaw-skill-${skill.name}.md" (renderSkill skill);
+                target = "${resolvePath inst.workspaceDir}/skills/${skill.name}/SKILL.md";
               }
-            else if mode == "copy" then
+            else if mode == "copy" || mode == "symlink" then
               {
-                name = "${base}/${skill.name}";
-                value = {
-                  source = builtins.path {
-                    name = "openclaw-skill-${skill.name}";
-                    path = source;
-                  };
-                  recursive = true;
+                source = builtins.path {
+                  name = "openclaw-skill-${skill.name}";
+                  path = source;
                 };
+                target = "${resolvePath inst.workspaceDir}/skills/${skill.name}";
               }
             else
-              {
-                name = "${base}/${skill.name}";
-                value = {
-                  source = config.lib.file.mkOutOfStoreSymlink source;
-                  recursive = true;
-                };
-              };
+              throw "Unsupported OpenClaw skill mode: ${mode}";
           pluginEntriesFor =
             p:
             map (skillPath: {
-              name = "${base}/${builtins.baseNameOf skillPath}";
-              value = {
-                source = skillPath;
-                recursive = true;
-              };
+              source = skillPath;
+              target = "${resolvePath inst.workspaceDir}/skills/${builtins.baseNameOf skillPath}";
             }) p.skills;
           pluginsForInstance = plugins.resolvedPluginsByInstance.${instName} or [ ];
         in
         (map entryFor cfg.skills) ++ (lib.flatten (map pluginEntriesFor pluginsForInstance));
     in
-    lib.listToAttrs (lib.flatten (lib.mapAttrsToList entriesForInstance enabledInstances));
+    lib.flatten (lib.mapAttrsToList entriesForInstance enabledInstances);
 
   documentsRequiredFiles = [
     "AGENTS.md"
@@ -155,21 +139,6 @@ let
       message = "Missing TOOLS.md in programs.openclaw.documents.";
     }
   ];
-
-  documentsGuard = lib.optionalString documentsEnabled (
-    let
-      guardLine = file: ''
-        if [ -e "${file}" ] && [ ! -L "${file}" ]; then
-          echo "OpenClaw documents are managed by Nix. Please adopt ${file} into your documents directory and re-run." >&2
-          exit 1
-        fi
-      '';
-      guardForDir = dir: ''
-        ${lib.concatStringsSep "\n" (map (name: guardLine "${dir}/${name}") documentsFileNames)}
-      '';
-    in
-    lib.concatStringsSep "\n" (map guardForDir instanceWorkspaceDirs)
-  );
 
   toolsReport =
     if documentsEnabled then
@@ -231,33 +200,38 @@ let
     else
       null;
 
-  documentsFiles =
+  documentEntries =
     if documentsEnabled then
       let
         mkDocFiles =
           dir:
           let
             mkDoc = name: {
-              name = toRelative (dir + "/${name}");
-              value = {
-                source = if name == "TOOLS.md" then toolsWithReport else cfg.documents + "/${name}";
-              };
+              source = if name == "TOOLS.md" then toolsWithReport else cfg.documents + "/${name}";
+              target = dir + "/${name}";
             };
           in
-          lib.listToAttrs (map mkDoc documentsFileNames);
+          map mkDoc documentsFileNames;
       in
-      lib.mkMerge (map mkDocFiles instanceWorkspaceDirs)
+      lib.flatten (map mkDocFiles instanceWorkspaceDirs)
     else
-      { };
+      [ ];
+
+  materializedEntries = documentEntries ++ skillEntries;
+  materializedArgs =
+    let
+      renderEntry =
+        entry: "${lib.escapeShellArg (toString entry.source)} ${lib.escapeShellArg entry.target}";
+    in
+    lib.concatStringsSep " " (map renderEntry materializedEntries);
 
 in
 {
   inherit
     documentsEnabled
     documentsAssertions
-    documentsGuard
-    documentsFiles
+    materializedArgs
+    materializedEntries
     duplicateSkillAssertion
-    skillFiles
     ;
 }

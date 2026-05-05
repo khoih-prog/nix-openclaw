@@ -56,7 +56,6 @@ let
 
   files = import ./files.nix {
     inherit
-      config
       lib
       pkgs
       openclawLib
@@ -280,8 +279,6 @@ in
         };
       })
       (lib.listToAttrs appInstalls)
-      files.documentsFiles
-      files.skillFiles
       plugins.pluginConfigFiles
       (lib.optionalAttrs cfg.reloadScript.enable {
         ".local/bin/openclaw-reload" = {
@@ -291,13 +288,6 @@ in
       })
     ];
 
-    home.activation.openclawDocumentGuard = lib.mkIf files.documentsEnabled (
-      lib.hm.dag.entryBefore [ "writeBoundary" ] ''
-        set -euo pipefail
-        ${files.documentsGuard}
-      ''
-    );
-
     home.activation.openclawDirs = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       run --quiet ${lib.getExe' pkgs.coreutils "mkdir"} -p ${
         lib.concatStringsSep " " (lib.concatMap (item: item.dirs) instanceConfigs)
@@ -306,6 +296,12 @@ in
         "run --quiet ${lib.getExe' pkgs.coreutils "mkdir"} -p ${lib.concatStringsSep " " plugins.pluginStateDirsAll}"
       }
     '';
+
+    home.activation.openclawWorkspaceFiles = lib.mkIf (files.materializedEntries != [ ]) (
+      lib.hm.dag.entryAfter [ "openclawDirs" ] ''
+        run --quiet ${../openclaw-materialize-workspace-files.sh} ${lib.escapeShellArg "${homeDir}/.local/state/nix-openclaw/managed-workspace-files"} ${files.materializedArgs}
+      ''
+    );
 
     home.activation.openclawConfigFiles = lib.hm.dag.entryAfter [ "openclawDirs" ] ''
       ${lib.concatStringsSep "\n" (
