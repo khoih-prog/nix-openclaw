@@ -66,7 +66,13 @@ OpenClaw packaging:
 - Generated config options come from the upstream core schema. Plugin-owned extension surfaces, such as `channels.<plugin-id>`, must remain accepted by the Home Manager module even when core does not type every plugin key.
 - Product intent: ship a working Nix package for OpenClaw users, not just a pin mirror. `openclaw-gateway` is the source-built runnable gateway for Linux and macOS; `openclaw-app` is the Darwin-only desktop app from upstream's signed/notarized app artifact; `openclaw` is the batteries-included bundle.
 - User-facing docs should lead with one package: `openclaw`. Treat `openclaw-gateway` and `openclaw-app` as advanced/component outputs for checks, modules, and debugging, not separate product tracks. Runtime tools are internal implementation detail, not a public package surface.
-- QMD is the Nix-supported batteries-included local memory backend. Keep `qmd` internal to the `openclaw` wrapper PATH; users opt in with upstream config (`memory.backend = "qmd"`). Do not make builtin `memorySearch.provider = "local"` / `node-llama-cpp` the primary supported path.
+- Boundary model:
+  - OpenClaw owns product/runtime behavior.
+  - nix-openclaw owns batteries-included Nix packaging, Home Manager/NixOS/Darwin modules, runtime PATH/env injection, launchd/systemd wiring, and package-contract checks.
+  - nix-openclaw-tools owns packaging OpenClaw-adjacent CLI tools and plugin metadata. Consume it here; do not duplicate its package definitions here.
+  - Downstream system repos, such as Josh's `nixos-config`, should only choose hosts, secrets, accounts, and enabled plugins. If downstream needs bespoke scripts to make a plugin or harness work, prefer fixing this repo or nix-openclaw-tools instead.
+- Runtime tool injection belongs here. If a plugin or battery is enabled, the active OpenClaw harness must see its CLI tools and required env without asking downstream to expose those tools globally on the user PATH. Cover gateway, launchd/systemd services, and Codex/app-server style harnesses when those are the selected runtime.
+- QMD is the Nix-supported batteries-included local memory backend. Keep `qmd` internal to the OpenClaw runtime PATH; users opt in with upstream config (`memory.backend = "qmd"`). Do not make builtin `memorySearch.provider = "local"` / `node-llama-cpp` the primary supported path.
 - README should be agent-first: the main setup path is "tell your coding agent you want OpenClaw using Nix, then let it inspect/interview/configure/verify." Manual commands are reference material, not the primary onboarding path.
 - Do not split the repo into separate desktop/server tracks. Segment package outputs, keep one simple user-facing flake.
 - Maintainers may consult upstream release-flow docs when available before changing update policy; do not copy private release-process details into this repo.
