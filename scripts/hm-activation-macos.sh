@@ -35,6 +35,8 @@ nix build --accept-flake-config --impure \
 
 test -f "$HOME/.openclaw/openclaw.json"
 test -f "$plist"
+test -L "$HOME/.openclaw/agents/main/agent/codex-home/home/.nix-profile/bin"
+test -x "$HOME/.openclaw/agents/main/agent/codex-home/home/.nix-profile/bin/jq"
 
 if command -v launchctl >/dev/null 2>&1; then
   state_file="$home_dir/launchd-state.txt"
@@ -52,6 +54,7 @@ if command -v launchctl >/dev/null 2>&1; then
   fi
 
   openclaw_bin=$(/usr/libexec/PlistBuddy -c "Print :ProgramArguments:0" "$plist")
+  grep -q OPENCLAW_TEST_SECRET "$openclaw_bin"
   health_file="$home_dir/gateway-health.json"
   healthy=false
   for _ in {1..30}; do

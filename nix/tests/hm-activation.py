@@ -9,6 +9,9 @@ machine.wait_until_succeeds("test -f /home/alice/.openclaw/workspace/AGENTS.md")
 machine.succeed("test ! -L /home/alice/.openclaw/workspace/AGENTS.md")
 machine.wait_until_succeeds("test -f /home/alice/.openclaw/workspace/skills/skill/SKILL.md")
 machine.succeed("test ! -L /home/alice/.openclaw/workspace/skills/skill")
+machine.wait_until_succeeds(
+    "test -x /home/alice/.openclaw/agents/main/agent/codex-home/home/.nix-profile/bin/jq"
+)
 
 uid = machine.succeed("id -u alice").strip()
 machine.succeed("loginctl enable-linger alice")

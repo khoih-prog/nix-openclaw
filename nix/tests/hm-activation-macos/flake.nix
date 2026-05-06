@@ -38,6 +38,8 @@
               programs.openclaw = {
                 enable = true;
                 installApp = false;
+                runtimePackages = [ pkgs.jq ];
+                environment.OPENCLAW_TEST_SECRET = "/tmp/openclaw-secret";
                 instances.default = {
                   gatewayPort = 18999;
                   logPath = "/tmp/hm-activation-home/.openclaw/openclaw-gateway.log";

@@ -209,16 +209,30 @@ let
     qmd.prewarmModels.enable = true;
   };
   qmdPrewarmActivation = builtins.toJSON qmdPrewarmEval.config.home.activation.openclawQmdPrewarm;
-  qmdPrewarmCheck =
-    builtins.deepSeq (requireNoAssertionFailures "qmd.prewarmModels" qmdPrewarmEval)
+  qmdPrewarmCheck = builtins.deepSeq (requireNoAssertionFailures "qmd.prewarmModels" qmdPrewarmEval) (
+    if
+      lib.hasInfix "OPENCLAW_QMD_BIN=" qmdPrewarmActivation
+      && lib.hasInfix "openclaw-qmd-prewarm.sh" qmdPrewarmActivation
+    then
+      "ok"
+    else
+      throw "qmd.prewarmModels did not wire QMD model-cache prewarm activation."
+  );
+
+  runtimeProfileEval = moduleEval {
+    runtimePackages = [ pkgs.jq ];
+    environment.OPENCLAW_TEST_SECRET = "/tmp/openclaw-secret";
+  };
+  runtimeProfileActivation = builtins.toJSON runtimeProfileEval.config.home.activation.openclawCodexRuntimeProfiles;
+  runtimeProfileCheck =
+    builtins.deepSeq (requireNoAssertionFailures "runtime profile" runtimeProfileEval)
       (
         if
-          lib.hasInfix "OPENCLAW_QMD_BIN=" qmdPrewarmActivation
-          && lib.hasInfix "openclaw-qmd-prewarm.sh" qmdPrewarmActivation
+          lib.hasInfix "openclaw-link-codex-runtime-profiles.sh" runtimeProfileActivation
         then
           "ok"
         else
-          throw "qmd.prewarmModels did not wire QMD model-cache prewarm activation."
+          throw "runtimePackages did not wire the Codex runtime profile activation."
       );
 
   checkKey = builtins.deepSeq [
@@ -228,6 +242,7 @@ let
     userPluginSkillCollisionCheck
     secretProviderCheck
     qmdPrewarmCheck
+    runtimeProfileCheck
   ] "ok";
 
 in

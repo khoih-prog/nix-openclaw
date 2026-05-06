@@ -22,6 +22,8 @@ let
     gatewayPort = 18789;
     gatewayPath = null;
     gatewayPnpmDepsHash = lib.fakeHash;
+    runtimePackages = [ ];
+    environment = { };
     launchd = cfg.launchd;
     systemd = cfg.systemd;
     plugins = openclawLib.effectivePlugins;
@@ -97,7 +99,24 @@ let
         else
           inst.package;
       pluginPackages = plugins.pluginPackagesFor name;
-      pluginEnvAll = plugins.pluginEnvAllFor name;
+      runtimePackages = lib.unique (
+        openclawLib.toolSets.tools
+        ++ (lib.optional (qmdPackage != null) qmdPackage)
+        ++ pluginPackages
+        ++ cfg.runtimePackages
+        ++ inst.runtimePackages
+      );
+      runtimeProfile = pkgs.symlinkJoin {
+        name = "openclaw-runtime-${name}";
+        paths = runtimePackages;
+      };
+      runtimePath = lib.makeBinPath runtimePackages;
+      runtimeEnvAll =
+        (plugins.pluginEnvAllFor name)
+        ++ (lib.mapAttrsToList (key: value: {
+          inherit key value;
+          plugin = "runtime";
+        }) (cfg.environment // inst.environment));
       mergedConfig0 = stripNulls (
         lib.recursiveUpdate (lib.recursiveUpdate baseConfig (stripNulls cfg.config)) (
           stripNulls inst.config
@@ -117,11 +136,20 @@ let
           mergedConfig0;
       configJson = builtins.toJSON mergedConfig;
       configFile = pkgs.writeText "openclaw-${name}.json" configJson;
+      agentIds =
+        let
+          agents = ((mergedConfig.agents or { }).list or [ ]);
+          configured = lib.filter (id: id != null) (map (agent: agent.id or null) agents);
+        in
+        lib.unique ([ "main" ] ++ configured);
+      codexRuntimeProfiles = map (
+        agentId: "${inst.stateDir}/agents/${agentId}/agent/codex-home/home/.nix-profile"
+      ) agentIds;
       gatewayWrapper = pkgs.writeShellScriptBin "openclaw-gateway-${name}" ''
         set -euo pipefail
 
-        if [ -n "${lib.makeBinPath pluginPackages}" ]; then
-          export PATH="${lib.makeBinPath pluginPackages}:$PATH"
+        if [ -n "${runtimePath}" ]; then
+          export PATH="${runtimePath}:$PATH"
         fi
 
         ${lib.concatStringsSep "\n" (
@@ -146,7 +174,7 @@ let
                 export ${entry.key}="${entry.value}"
               fi
             ''
-          ) pluginEnvAll
+          ) runtimeEnvAll
         )}
 
         exec "${gatewayPackage}/bin/openclaw" "$@"
@@ -181,6 +209,8 @@ let
       };
       configFile = configFile;
       configPath = inst.configPath;
+      codexRuntimeProfiles = codexRuntimeProfiles;
+      runtimeProfile = runtimeProfile;
 
       dirs = [
         inst.stateDir
@@ -245,6 +275,21 @@ let
     };
 
   instanceConfigs = lib.mapAttrsToList mkInstanceConfig enabledInstances;
+  codexRuntimeProfileEntries = lib.flatten (
+    map (
+      item:
+      map (profileDir: {
+        inherit profileDir;
+        binDir = "${item.runtimeProfile}/bin";
+      }) item.codexRuntimeProfiles
+    ) instanceConfigs
+  );
+  codexRuntimeProfilesManifest = pkgs.writeText "openclaw-codex-runtime-profiles.tsv" (
+    (lib.concatStringsSep "\n" (
+      map (entry: "${entry.profileDir}\t${entry.binDir}") codexRuntimeProfileEntries
+    ))
+    + "\n"
+  );
   appInstalls = lib.filter (item: item != null) (map (item: item.appInstall) instanceConfigs);
   launchdLabels = lib.filter (label: label != null) (map (item: item.launchdLabel) instanceConfigs);
   launchdLabelArgs = lib.concatStringsSep " " (map lib.escapeShellArg launchdLabels);
@@ -318,24 +363,28 @@ in
       )}
     '';
 
+    home.activation.openclawCodexRuntimeProfiles = lib.mkIf (codexRuntimeProfileEntries != [ ]) (
+      lib.hm.dag.entryAfter [ "openclawDirs" ] ''
+        run --quiet ${pkgs.bash}/bin/bash ${../openclaw-link-codex-runtime-profiles.sh} ${codexRuntimeProfilesManifest}
+      ''
+    );
+
     home.activation.openclawPluginGuard = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       set -euo pipefail
       ${plugins.pluginGuards}
     '';
 
-    home.activation.openclawQmdPrewarm =
-      lib.mkIf (cfg.qmd.prewarmModels.enable && qmdPackage != null)
-        (
-          lib.hm.dag.entryAfter [ "openclawDirs" ] ''
-            run --quiet ${lib.getExe' pkgs.coreutils "env"} \
-              HOME=${lib.escapeShellArg homeDir} \
-              XDG_CACHE_HOME=${lib.escapeShellArg "${homeDir}/.cache"} \
-              XDG_CONFIG_HOME=${lib.escapeShellArg "${homeDir}/.config"} \
-              XDG_DATA_HOME=${lib.escapeShellArg "${homeDir}/.local/share"} \
-              OPENCLAW_QMD_BIN=${lib.escapeShellArg "${qmdPackage}/bin/qmd"} \
-              ${pkgs.bash}/bin/bash ${../../../scripts/openclaw-qmd-prewarm.sh}
-          ''
-        );
+    home.activation.openclawQmdPrewarm = lib.mkIf (cfg.qmd.prewarmModels.enable && qmdPackage != null) (
+      lib.hm.dag.entryAfter [ "openclawDirs" ] ''
+        run --quiet ${lib.getExe' pkgs.coreutils "env"} \
+          HOME=${lib.escapeShellArg homeDir} \
+          XDG_CACHE_HOME=${lib.escapeShellArg "${homeDir}/.cache"} \
+          XDG_CONFIG_HOME=${lib.escapeShellArg "${homeDir}/.config"} \
+          XDG_DATA_HOME=${lib.escapeShellArg "${homeDir}/.local/share"} \
+          OPENCLAW_QMD_BIN=${lib.escapeShellArg "${qmdPackage}/bin/qmd"} \
+          ${pkgs.bash}/bin/bash ${../../../scripts/openclaw-qmd-prewarm.sh}
+      ''
+    );
 
     home.activation.openclawAppDefaults =
       lib.mkIf (pkgs.stdenv.hostPlatform.isDarwin && appDefaults != { })

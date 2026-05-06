@@ -107,6 +107,18 @@ in
       };
     };
 
+    runtimePackages = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = [ ];
+      description = "Extra packages visible to the OpenClaw gateway and isolated Codex harness only. These are not added to the user's PATH.";
+    };
+
+    environment = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      description = "Extra runtime environment for OpenClaw gateway wrappers. Values that point to files are read at runtime unless the variable name ends in _FILE.";
+    };
+
     documents = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
