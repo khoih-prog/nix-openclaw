@@ -184,8 +184,14 @@ in
 
     exposePluginPackages = lib.mkOption {
       type = lib.types.bool;
-      default = true;
+      default = false;
       description = "Add plugin packages to home.packages so CLIs are on PATH.";
+    };
+
+    qmd.prewarmModels.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Download/check QMD's default GGUF models during Home Manager activation. This uses about 2.25GB under the user's QMD cache.";
     };
 
     reloadScript = {

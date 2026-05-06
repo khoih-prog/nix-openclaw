@@ -400,7 +400,7 @@ Contract to implement:
 1) Add openclawPlugin output in flake.nix:
    - name
    - skills (paths to SKILL.md dirs)
-   - packages (CLI packages to put on PATH)
+   - packages (CLI packages to put on the OpenClaw runtime PATH)
    - needs (stateDirs + requiredEnv)
 
 Example:
@@ -712,6 +712,16 @@ programs.openclaw.config = {
 ```
 
 QMD stays inside the `openclaw` wrapper PATH, so users do not need to install a separate `qmd` command. The builtin `memorySearch.provider = "local"` path is an escape hatch for people who want to manage `node-llama-cpp` themselves; it is not the primary Nix-supported path.
+
+Plugin CLIs are also kept on the OpenClaw runtime PATH by default, not on the user's login shell PATH. Set `programs.openclaw.exposePluginPackages = true` only when you explicitly want plugin CLIs in `home.packages`.
+
+Optional model prewarming is also declarative:
+
+```nix
+programs.openclaw.qmd.prewarmModels.enable = true;
+```
+
+That runs `qmd pull` during Home Manager activation and stores the default embedding, expansion, and reranking models in the user's QMD cache. Expect about 2.25GB of cache use.
 
 ### What we manage vs what you manage
 

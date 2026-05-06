@@ -41,7 +41,7 @@ in
 
     package = mkOption {
       type = types.package;
-      default = if pkgs ? openclaw-gateway then pkgs.openclaw-gateway else pkgs.openclaw;
+      default = if pkgs ? openclaw then pkgs.openclaw else pkgs.openclaw-gateway;
       description = "OpenClaw gateway package.";
     };
 

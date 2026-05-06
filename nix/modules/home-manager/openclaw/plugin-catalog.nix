@@ -54,6 +54,12 @@
     linux = true;
   };
 
+  qmd = {
+    tool = "qmd";
+    description = "Search local markdown knowledge bases";
+    linux = true;
+  };
+
   sonoscli = {
     tool = "sonoscli";
     description = "Control Sonos speakers";

@@ -50,7 +50,7 @@ plugin/
 That's it. No registry. No central authority. Point at a repo, get a plugin.
 
 One install gives you:
-- **Binary** on PATH (built from source, pinned version)
+- **Binary** on the OpenClaw runtime PATH (built from source, pinned version)
 - **Skills** in workspace (agent knows how to use it)
 - **Config** validated (missing env = install fails, not runtime error)
 - **State dirs** created (plugin has a home)
@@ -203,7 +203,7 @@ voicecall status --call-id abc123  # Check for responses
 4. **Create state dirs** — from manifest
 5. **Add `openclaw plugins` CLI** — list, enable, disable, info
 
-That's it. No dynamic code loading, no TypeBox registration, no RPC handlers. Just: find plugins, validate their needs, put binaries on PATH, copy skills to workspace.
+That's it. No dynamic code loading, no TypeBox registration, no RPC handlers. Just: find plugins, validate their needs, put binaries on the OpenClaw runtime PATH, copy skills to workspace.
 
 ### How nix-openclaw fits in
 

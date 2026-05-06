@@ -10,6 +10,7 @@ let
   cfg = openclawLib.cfg;
   homeDir = openclawLib.homeDir;
   appPackage = openclawLib.appPackage;
+  qmdPackage = openclawLib.qmdPackage;
 
   defaultInstance = {
     enable = cfg.enable;
@@ -262,7 +263,13 @@ in
     ]
     ++ files.documentsAssertions
     ++ files.duplicateSkillAssertion
-    ++ plugins.pluginAssertions;
+    ++ plugins.pluginAssertions
+    ++ [
+      {
+        assertion = !cfg.qmd.prewarmModels.enable || qmdPackage != null;
+        message = "programs.openclaw.qmd.prewarmModels.enable requires a qmd package in openclawPackages.";
+      }
+    ];
 
     home.packages = lib.unique (
       (map (item: item.package) instanceConfigs)
@@ -315,6 +322,19 @@ in
       set -euo pipefail
       ${plugins.pluginGuards}
     '';
+
+    home.activation.openclawQmdPrewarm =
+      lib.mkIf (cfg.qmd.prewarmModels.enable && qmdPackage != null)
+        (
+          lib.hm.dag.entryAfter [ "openclawDirs" ] ''
+            run --quiet ${lib.getExe' pkgs.coreutils "env"} \
+              HOME=${lib.escapeShellArg homeDir} \
+              XDG_CACHE_HOME=${lib.escapeShellArg "${homeDir}/.cache"} \
+              XDG_CONFIG_HOME=${lib.escapeShellArg "${homeDir}/.config"} \
+              XDG_DATA_HOME=${lib.escapeShellArg "${homeDir}/.local/share"} \
+              ${qmdPackage}/bin/qmd pull
+          ''
+        );
 
     home.activation.openclawAppDefaults =
       lib.mkIf (pkgs.stdenv.hostPlatform.isDarwin && appDefaults != { })

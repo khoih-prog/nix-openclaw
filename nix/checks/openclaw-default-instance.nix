@@ -205,12 +205,26 @@ let
           throw "secrets.providers file variant missing from generated config."
       );
 
+  qmdPrewarmEval = moduleEval {
+    qmd.prewarmModels.enable = true;
+  };
+  qmdPrewarmActivation = builtins.toJSON qmdPrewarmEval.config.home.activation.openclawQmdPrewarm;
+  qmdPrewarmCheck =
+    builtins.deepSeq (requireNoAssertionFailures "qmd.prewarmModels" qmdPrewarmEval)
+      (
+        if lib.hasInfix "/bin/qmd pull" qmdPrewarmActivation then
+          "ok"
+        else
+          throw "qmd.prewarmModels did not wire qmd pull activation."
+      );
+
   checkKey = builtins.deepSeq [
     defaultCheck
     customPluginCheck
     duplicateSkillCheck
     userPluginSkillCollisionCheck
     secretProviderCheck
+    qmdPrewarmCheck
   ] "ok";
 
 in

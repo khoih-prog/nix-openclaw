@@ -30,4 +30,5 @@ in
   openclaw-gateway = openclawGateway;
   openclaw = openclawBundle;
 }
+// (if qmdPackage != null then { qmd = qmdPackage; } else { })
 // (if isDarwin then { openclaw-app = openclawApp; } else { })

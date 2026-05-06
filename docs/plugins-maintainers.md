@@ -14,7 +14,7 @@ Every plugin artifact exposes the same fields (flake output `openclawPlugin` tod
 openclawPlugin = {
   name        = "summarize";                # unique; last-wins on collision
   skills      = [ ./skills/summarize ];      # dirs containing SKILL.md
-  packages    = [ pkgs.summarize-cli ];      # binaries placed on PATH
+  packages    = [ pkgs.summarize-cli ];      # binaries placed on the OpenClaw runtime PATH
   needs = {
     stateDirs   = [ ".config/summarize" ]; # created under $HOME
     requiredEnv = [ "SUMMARIZE_API_KEY" ];  # must point to files

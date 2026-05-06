@@ -21,13 +21,14 @@ let
     else
       cfg.package;
   appPackage = if cfg.appPackage != null then cfg.appPackage else defaultPackage;
+  qmdPackage = pkgs.openclawPackages.qmd or null;
   generatedConfigOptions = import ../../../generated/openclaw-config-options.nix { lib = lib; };
   pluginCatalog = import ./plugin-catalog.nix;
 
   bundledPluginSources =
     let
-      openclawToolsRev = "08955054f466e2eb55628763c1d7ee2de5af9f6d";
-      openclawToolsNarHash = "sha256-IsgLwW0Y6JYiWXbxmzN1FDO0//Osu2YpeID1tFMbwkk=";
+      openclawToolsRev = "a0e7ac5ef1b6f5d1940e3efdb9ebad2dc04467f1";
+      openclawToolsNarHash = "sha256-EsQiDKKwBS8so+OzjPOZH+z+JOJeREAsOJ/fJAx3WCY=";
       openclawTools =
         tool:
         "github:openclaw/nix-openclaw-tools?dir=tools/${tool}&rev=${openclawToolsRev}&narHash=${openclawToolsNarHash}";
@@ -66,6 +67,7 @@ in
     toolSets
     defaultPackage
     appPackage
+    qmdPackage
     generatedConfigOptions
     bundledPluginSources
     bundledPlugins
