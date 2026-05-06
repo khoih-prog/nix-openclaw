@@ -726,7 +726,10 @@ Optional model prewarming is also declarative:
 programs.openclaw.qmd.prewarmModels.enable = true;
 ```
 
-That runs `qmd pull` during Home Manager activation and stores the default embedding, expansion, and reranking models in the user's QMD cache. Expect about 2.25GB of cache use.
+That runs a temporary QMD collection through `qmd update`, `qmd embed`, and
+`qmd query` during Home Manager activation, which warms the default embedding,
+expansion, and reranking models in the user's QMD cache. Expect about 2.25GB of
+cache use.
 
 ### What we manage vs what you manage
 

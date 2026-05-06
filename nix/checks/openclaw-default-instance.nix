@@ -212,10 +212,13 @@ let
   qmdPrewarmCheck =
     builtins.deepSeq (requireNoAssertionFailures "qmd.prewarmModels" qmdPrewarmEval)
       (
-        if lib.hasInfix "/bin/qmd pull" qmdPrewarmActivation then
+        if
+          lib.hasInfix "OPENCLAW_QMD_BIN=" qmdPrewarmActivation
+          && lib.hasInfix "openclaw-qmd-prewarm.sh" qmdPrewarmActivation
+        then
           "ok"
         else
-          throw "qmd.prewarmModels did not wire qmd pull activation."
+          throw "qmd.prewarmModels did not wire QMD model-cache prewarm activation."
       );
 
   checkKey = builtins.deepSeq [

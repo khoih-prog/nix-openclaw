@@ -332,7 +332,8 @@ in
               XDG_CACHE_HOME=${lib.escapeShellArg "${homeDir}/.cache"} \
               XDG_CONFIG_HOME=${lib.escapeShellArg "${homeDir}/.config"} \
               XDG_DATA_HOME=${lib.escapeShellArg "${homeDir}/.local/share"} \
-              ${qmdPackage}/bin/qmd pull
+              OPENCLAW_QMD_BIN=${lib.escapeShellArg "${qmdPackage}/bin/qmd"} \
+              ${pkgs.bash}/bin/bash ${../../../scripts/openclaw-qmd-prewarm.sh}
           ''
         );
 
