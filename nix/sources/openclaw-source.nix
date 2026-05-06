@@ -2,9 +2,9 @@
 {
   owner = "openclaw";
   repo = "openclaw";
-  releaseTag = "v2026.5.5";
-  releaseVersion = "2026.5.5";
-  rev = "b1abf9d8ae4410c6a6e08f7dfd2d617f4550281c";
-  hash = "sha256-X13PRFDR5NAEKvuvm0/6BSnICm1ZM+vW2HRpOd8ymA4=";
+  releaseTag = "v2026.5.6";
+  releaseVersion = "2026.5.6";
+  rev = "c97b9f79ec43b531a3472c3219ca51efbf7695a3";
+  hash = "sha256-svziVePavoMxEUQAaNkv+67tSUOywblefmeTWtmKo9Y=";
   pnpmDepsHash = "sha256-kz9vE1A/GTkw/HH2ts4hxTJzrdkYhiLaJQP0AeAS3Bo=";
 }
