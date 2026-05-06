@@ -68,12 +68,14 @@ OpenClaw packaging:
 - Release-flow context lives in `openclaw/maintainers` and `openclaw/openclaw`. Read `openclaw/maintainers/release/README.md`, `release/macos.md`, and the public `openclaw/openclaw` release workflows before changing update policy.
 - Public OpenClaw tags/GitHub releases can exist before macOS app assets. The public `macos-release.yml` is validation-only; private release workflows upload `.zip`, `.dmg`, and `.dSYM.zip` later.
 - Missing public macOS assets on the newest stable release is not proof the source gateway is unpackageable. Do not hold back the source-built gateway because the desktop artifact lags.
+- Source and app versions are allowed to differ. This is expected when upstream publishes source releases but forgets to publish public macOS app assets.
 - Prefer the upstream `.zip` app artifact for `openclaw-app`, but verify unpacked contents contain an `.app`; do not trust filename alone.
 
 Golden path for pins (yolo + manual bumps):
 - Hourly GitHub Action **Yolo Update Pins** should select the newest stable upstream OpenClaw source release for `openclaw-gateway`.
 - `openclaw-app` should independently track the newest stable public macOS `.zip` artifact. It may lag the source pin when upstream has not promoted desktop assets yet.
 - If newer stable source releases lack public macOS assets, yolo should report app lag and still promote the newest source release that passes checks.
+- Pipeline health does not require source and app versions to match. It requires both tracks to be fresh: gateway equals the newest stable source release, and app equals the newest stable release with a public `OpenClaw-*.zip`.
 - Checks mean the Nix-owned package contract: source build, generated config options, package contents, smoke startup, module activation, and newest available macOS app artifact. Do not gate yolo on the full upstream Vitest suite; upstream owns source test health.
 - `scripts/update-pins.sh` is the updater boundary:
   - `select` resolves the latest source tag/SHA, the latest public macOS app tag/URL, and any app-lagging source releases
@@ -87,9 +89,11 @@ Daily Codex maintainer automation:
 - The daily automation is an agentic maintainer run, not a passive alert and not a second release pipeline.
 - Product intent is simple: keep OpenClaw packaged with Nix for real users on macOS and Linux.
 - Start from upstream/yolo/CI state: inspect latest OpenClaw releases, recent **Yolo Update Pins** runs, recent `CI` runs, current pins, and `scripts/update-pins.sh select`.
-- macOS app publishing is out of scope for this repo and this automation. If upstream forgets to publish public macOS app assets, classify it as upstream release-contract lag, keep the app pin on the newest public zip, and keep packaging the latest stable source-built gateway.
-- If yolo and CI are healthy, report briefly and stop.
-- If broken, diagnose deeply and classify the failure: upstream release-contract lag, nix-openclaw packaging bug, CI infrastructure issue, or automation/repo-policy drift.
+- The first answer must be: does `nix-openclaw` publish the latest upstream version for both supported tracks? Answer `YES` only when `openclaw-gateway` matches the newest stable source release and `openclaw-app` matches the newest stable release with a public `OpenClaw-*.zip`.
+- Do not ask whether source/app versions should match; they should not be forced to match. If both tracks are current, say so directly even when the version numbers differ.
+- macOS app publishing is out of scope for this repo and this automation. If upstream forgets to publish public macOS app assets, call it an upstream app publishing miss, keep the app pin on the newest public zip, and keep packaging the latest stable source-built gateway.
+- If both tracks are current and yolo/CI are healthy, report that briefly and stop.
+- If either track is stale or yolo/CI cannot maintain it, diagnose deeply, fix the nix-openclaw pipeline when the fix belongs here, and classify the failure: upstream app publishing miss, nix-openclaw packaging bug, CI infrastructure issue, or automation/repo-policy drift.
 - If the fix is in nix-openclaw, edit the repo, self-review the diff until the review has no actionable findings, run the full gate, commit directly to `main`, and push directly to `main`.
 - Full gate means the relevant targeted checks plus `scripts/check-flake-lock-owners.sh`, selector test, updater shell syntax, workflow YAML parse, `nix flake show --accept-flake-config`, Linux CI aggregator, Darwin CI aggregator when available, and `scripts/hm-activation-macos.sh` when a macOS runner is available.
 - No force push. No weakening Nix-owned package checks to get green. No separate PR flow unless direct push is blocked by GitHub policy.
