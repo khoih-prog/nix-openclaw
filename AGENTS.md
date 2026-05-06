@@ -87,14 +87,13 @@ Golden path for pins (yolo + manual bumps):
 Daily Codex maintainer automation:
 - Automation id: `nix-openclaw-maintainer` (daily around 06:00 Europe/Amsterdam).
 - The daily automation is an agentic maintainer run, not a passive alert and not a second release pipeline.
-- Product intent is simple: keep OpenClaw packaged with Nix for real users on macOS and Linux.
+- Desired end state: `nix-openclaw` publishes the newest stable OpenClaw gateway that can be built from source, and the newest stable OpenClaw macOS app that upstream has actually published as a public `OpenClaw-*.zip`. These are independent tracks and their versions do not need to match.
 - Start from upstream/yolo/CI state: inspect latest OpenClaw releases, recent **Yolo Update Pins** runs, recent `CI` runs, current pins, and `scripts/update-pins.sh select`.
 - The first answer must be: does `nix-openclaw` publish the latest upstream version for both supported tracks? Answer `YES` only when `openclaw-gateway` matches the newest stable source release and `openclaw-app` matches the newest stable release with a public `OpenClaw-*.zip`.
-- Do not ask whether source/app versions should match; they should not be forced to match. If both tracks are current, say so directly even when the version numbers differ.
-- macOS app publishing is out of scope for this repo and this automation. If upstream forgets to publish public macOS app assets, call it an upstream app publishing miss, keep the app pin on the newest public zip, and keep packaging the latest stable source-built gateway.
-- If both tracks are current and yolo/CI are healthy, report that briefly and stop.
-- If either track is stale or yolo/CI cannot maintain it, diagnose deeply, fix the nix-openclaw pipeline when the fix belongs here, and classify the failure: upstream app publishing miss, nix-openclaw packaging bug, CI infrastructure issue, or automation/repo-policy drift.
-- If the fix is in nix-openclaw, edit the repo, self-review the diff until the review has no actionable findings, run the full gate, commit directly to `main`, and push directly to `main`.
+- If both tracks are current and yolo/CI are healthy, stop with a short CTO-level report: current gateway, latest upstream gateway, current app, latest published app, and whether action was needed.
+- If the desired end state is not true, keep working until it is true or until the exact blocker is proven. Diagnose across upstream release data, yolo selection, pin materialization, generated config options, package builds, smoke checks, module activation, workflow behavior, caches, and CI runner failures. Do not ask Josh to choose a repair strategy when the desired end state is clear.
+- macOS app publishing is out of scope for this repo and this automation. If upstream forgets to publish public macOS app assets, call it an upstream app publishing miss, keep the app pin on the newest public zip, keep packaging the latest stable source-built gateway, and repair nix-openclaw only if it fails to do that.
+- If either track is stale or yolo/CI cannot maintain it, fix the nix-openclaw pipeline when the fix belongs here: edit the repo, self-review the diff until the review has no actionable findings, run the full gate, commit directly to `main`, push directly to `main`, and verify GitHub Actions on the pushed commit.
 - Full gate means the relevant targeted checks plus `scripts/check-flake-lock-owners.sh`, selector test, updater shell syntax, workflow YAML parse, `nix flake show --accept-flake-config`, Linux CI aggregator, Darwin CI aggregator when available, and `scripts/hm-activation-macos.sh` when a macOS runner is available.
 - No force push. No weakening Nix-owned package checks to get green. No separate PR flow unless direct push is blocked by GitHub policy.
 - Do not create a competing release process; yolo remains the release updater. The daily run repairs the packaging/process when yolo cannot do its job.
