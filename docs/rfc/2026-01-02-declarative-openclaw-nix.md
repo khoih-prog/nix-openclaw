@@ -26,7 +26,7 @@ This RFC is only about:
 - A generic, end‑user Nix setup that lives outside any personal config repo.
 
 This RFC is explicitly **not** about:
-- Josh’s personal `nixos-config` or any private machine configuration.
+- Any personal system configuration repo or private machine configuration.
 - Editing or publishing personal settings, tokens, or machine‑specific modules.
 
 ## 2) Goals / Non‑goals

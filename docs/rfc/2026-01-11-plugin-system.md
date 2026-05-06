@@ -217,7 +217,7 @@ programs.openclaw.customPlugins = [
   { source = "github:joshp123/padel-cli"; }
 
   # Local dev: point at directory
-  { source = "path:/Users/josh/code/my-plugin"; }
+  { source = "path:/home/user/code/my-plugin"; }
 ];
 
 # Or enable bundled plugins (pinned in nix-openclaw):
