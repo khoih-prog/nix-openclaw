@@ -706,7 +706,7 @@ home-manager switch --rollback  # revert
 
 ### Local memory
 
-`openclaw` includes QMD internally as the supported local memory backend. It is not enabled automatically.
+`openclaw` includes QMD internally as the supported local memory backend. It is not enabled automatically. Linux uses upstream `tobi/qmd`; Darwin uses the repaired `nix-openclaw-tools` package until upstream QMD is fixed there.
 
 Opt in through normal OpenClaw config:
 
