@@ -37,10 +37,14 @@ printf "%s" "$store_path" > "$store_path_file"
 fetcherVersion=$(cat "$PNPM_DEPS/.fetcher-version" 2>/dev/null || echo 1)
 if [ "$fetcherVersion" -ge 3 ]; then
   # tar --zstd uses libzstd; on some platforms it ends up single-threaded.
-  # Use zstd directly to enable multi-threaded decompression.
+  # Use zstd directly, bounded by Nix's build-core budget.
+  zstd_threads="${NIX_BUILD_CORES:-2}"
+  case "$zstd_threads" in
+    ''|*[!0-9]*) zstd_threads=2 ;;
+  esac
   log_step "extract pnpm store (fetcherVersion=${fetcherVersion})" sh -c '
-    zstd -d --threads=0 < "$1" | tar -xf - -C "$2"
-  ' sh "$PNPM_DEPS/pnpm-store.tar.zst" "$store_path"
+    zstd -d --threads="$3" < "$1" | tar -xf - -C "$2"
+  ' sh "$PNPM_DEPS/pnpm-store.tar.zst" "$store_path" "$zstd_threads"
 else
   log_step "copy pnpm store (fetcherVersion=${fetcherVersion})" cp -Tr "$PNPM_DEPS" "$store_path"
 fi
