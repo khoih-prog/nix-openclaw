@@ -80,8 +80,6 @@ if [ ! -f "$STDENV_SETUP" ]; then
   exit 1
 fi
 
-log_step "patchShebangs node_modules/.bin" bash -e -c '. "$STDENV_SETUP"; patchShebangs "$out/lib/openclaw/node_modules/.bin"'
-
 # Work around missing dependency declaration in pi-coding-agent (strip-ansi).
 # Ensure it is resolvable at runtime without changing upstream.
 pi_pkg="$(find "$out/lib/openclaw/node_modules/.pnpm" -path "*/node_modules/@mariozechner/pi-coding-agent" -print | head -n 1)"
