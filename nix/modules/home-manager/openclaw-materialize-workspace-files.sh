@@ -27,7 +27,7 @@ copy_path() {
   source="$1"
   target="$2"
 
-  if [ -e "$target" ] && [ ! -L "$target" ] && ! was_managed "$target"; then
+  if [ -e "$target" ] && [ ! -L "$target" ] && ! was_managed "$target" && [ -w "$target" ]; then
     echo "OpenClaw workspace path exists and is not managed by Nix: $target" >&2
     echo "Move it into programs.openclaw.documents or remove it before switching." >&2
     exit 1
