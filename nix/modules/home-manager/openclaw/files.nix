@@ -143,26 +143,57 @@ let
   toolsReport =
     if documentsEnabled then
       let
-        toolNames = toolSets.toolNames or [ ];
         renderPkgName = pkg: if pkg ? pname then pkg.pname else lib.getName pkg;
+        renderPkgCommand =
+          pkg:
+          let
+            pkgName = renderPkgName pkg;
+            commandName = pkg.meta.mainProgram or pkgName;
+          in
+          if commandName == pkgName then commandName else "${commandName} (${pkgName})";
+        toolPackages = lib.filter (p: p != null) (toolSets.tools or [ ]);
         renderPlugin =
           plugin:
           let
-            pkgNames = map renderPkgName (lib.filter (p: p != null) plugin.packages);
+            pkgNames = map renderPkgCommand (lib.filter (p: p != null) plugin.packages);
             pkgSuffix = if pkgNames == [ ] then "" else " — " + (lib.concatStringsSep ", " pkgNames);
           in
           "- " + plugin.name + pkgSuffix + " (" + plugin.source + ")";
+        renderPkgList =
+          packages:
+          let
+            actualPackages = lib.filter (p: p != null) packages;
+          in
+          if actualPackages == [ ] then
+            [ "- (none)" ]
+          else
+            map (pkg: "- " + renderPkgCommand pkg) actualPackages;
         pluginLinesFor =
           instName: inst:
           let
             pluginsForInstance = plugins.resolvedPluginsByInstance.${instName} or [ ];
-            lines = if pluginsForInstance == [ ] then [ "- (none)" ] else map renderPlugin pluginsForInstance;
+            pluginLines =
+              if pluginsForInstance == [ ] then [ "- (none)" ] else map renderPlugin pluginsForInstance;
+            runtimePackages = lib.unique (
+              (lib.optional (openclawLib.qmdPackage != null) openclawLib.qmdPackage)
+              ++ (cfg.runtimePackages or [ ])
+              ++ (inst.runtimePackages or [ ])
+            );
           in
           [
             ""
             "### Instance: ${instName}"
           ]
-          ++ lines;
+          ++ [
+            ""
+            "Plugins:"
+          ]
+          ++ pluginLines
+          ++ [
+            ""
+            "Runtime packages:"
+          ]
+          ++ renderPkgList runtimePackages;
         reportLines = [
           "<!-- BEGIN NIX-REPORT -->"
           ""
@@ -170,7 +201,9 @@ let
           ""
           "### Built-in toolchain"
         ]
-        ++ (if toolNames == [ ] then [ "- (none)" ] else map (name: "- " + name) toolNames)
+        ++ (
+          if toolPackages == [ ] then [ "- (none)" ] else map (pkg: "- " + renderPkgCommand pkg) toolPackages
+        )
         ++ [
           ""
           "## Nix-managed plugin report"
@@ -180,7 +213,7 @@ let
         ++ lib.concatLists (lib.mapAttrsToList pluginLinesFor enabledInstances)
         ++ [
           ""
-          "Tools: batteries-included toolchain + plugin-provided CLIs."
+          "Tools: batteries-included toolchain + runtime packages + plugin-provided CLIs."
           ""
           "<!-- END NIX-REPORT -->"
         ];
