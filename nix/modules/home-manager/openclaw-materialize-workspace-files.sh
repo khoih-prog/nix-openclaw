@@ -18,7 +18,10 @@ copy_path() {
   source="$1"
   target="$2"
 
-  rm -rf "$target"
+  if [ -e "$target" ] || [ -L "$target" ]; then
+    chmod -R u+w "$target" 2>/dev/null || true
+    rm -rf "$target"
+  fi
   mkdir -p "$(dirname "$target")"
 
   if [ -d "$source" ]; then
