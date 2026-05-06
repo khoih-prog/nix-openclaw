@@ -39,6 +39,11 @@ Documentation policy:
 - Avoid duplicate “pointer‑only” files.
 - Update `README.md` first, then adjust references.
 
+Repository boundaries:
+- This is a public packaging repo. Keep committed guidance about public `nix-openclaw` behavior, public upstream OpenClaw releases, public artifacts, and public CI.
+- Consumer setup docs belong in `README.md`, templates, and module docs. `AGENTS.md` is maintainer/agent operating guidance, not the user onboarding path.
+- Private deployments, bots, hosts, local worktrees, tokens, and personal automation details do not belong in this repo. If a private deployment exposes a public packaging bug, fix the public package; otherwise keep the fix in the private repo/thread.
+
 Defaults:
 - Nix‑first, no sudo.
 - Declarative config only.
@@ -49,9 +54,9 @@ Defaults:
 - NEVER send any message (iMessage, email, SMS, etc.) without explicit user confirmation:
   - Always show the full message text and ask: “I’m going to send this: <message>. Send? (y/n)”
 
-Git workflow:
+Maintainer git workflow:
 - Trunk-based development: work on `main` by default and push small, surgical commits directly to `main`.
-- Use branches only when Josh explicitly asks, direct push is blocked, or a disposable local experiment is needed.
+- Use branches only when a maintainer explicitly asks, direct push is blocked, or a disposable local experiment is needed.
 - For multi-issue work, commit and push one issue at a time; verify GitHub Actions for each pushed commit before continuing to the next issue.
 - Do not leave completed maintainer work parked on a Codex branch.
 
@@ -64,11 +69,10 @@ OpenClaw packaging:
 - QMD is the Nix-supported batteries-included local memory backend. Keep `qmd` internal to the `openclaw` wrapper PATH; users opt in with upstream config (`memory.backend = "qmd"`). Do not make builtin `memorySearch.provider = "local"` / `node-llama-cpp` the primary supported path.
 - README should be agent-first: the main setup path is "tell your coding agent you want OpenClaw using Nix, then let it inspect/interview/configure/verify." Manual commands are reference material, not the primary onboarding path.
 - Do not split the repo into separate desktop/server tracks. Segment package outputs, keep one simple user-facing flake.
-- DJTBOT deployment freshness is downstream and out of scope unless explicitly requested; fix public packaging first.
-- Release-flow context lives in `openclaw/maintainers` and `openclaw/openclaw`. Read `openclaw/maintainers/release/README.md`, `release/macos.md`, and the public `openclaw/openclaw` release workflows before changing update policy.
-- Public OpenClaw tags/GitHub releases can exist before macOS app assets. The public `macos-release.yml` is validation-only; private release workflows upload `.zip`, `.dmg`, and `.dSYM.zip` later.
+- Maintainers may consult upstream release-flow docs when available before changing update policy; do not copy private release-process details into this repo.
+- Public OpenClaw tags/GitHub releases can exist before macOS app assets. Only public release assets are package inputs for `openclaw-app`.
 - Missing public macOS assets on the newest stable release is not proof the source gateway is unpackageable. Do not hold back the source-built gateway because the desktop artifact lags.
-- Source and app versions are allowed to differ. This is expected when upstream publishes source releases but forgets to publish public macOS app assets.
+- Source and app versions are allowed to differ. This is expected when upstream publishes source releases but has not published public macOS app assets.
 - Prefer the upstream `.zip` app artifact for `openclaw-app`, but verify unpacked contents contain an `.app`; do not trust filename alone.
 
 Golden path for pins (yolo + manual bumps):
@@ -82,17 +86,17 @@ Golden path for pins (yolo + manual bumps):
   - `apply <source-tag> <source-sha> <app-tag> <app-url>` materializes the source pin, app pin, `pnpmDepsHash`, and generated config options
 - Manual bump (rare): trigger yolo manually with `gh workflow run "Yolo Update Pins"`.
 - To verify freshness: compare `nix/sources/openclaw-source.nix` to GitHub's newest stable source tag, and compare `nix/packages/openclaw-app.nix` to the newest stable public macOS zip.
-- Recovery note: repin source to the latest stable OpenClaw release first, keep app on the newest public desktop artifact, fix Nix-owned seams before touching gateway behavior, and avoid broad `gateway-postpatch.sh` behavior hacks.
+- Recovery process if publishing is broken: restore pins to the split-track desired state first, then make the smallest targeted packaging fix needed. Change upstream gateway behavior only with clear evidence.
 
-Daily Codex maintainer automation:
-- Automation id: `nix-openclaw-maintainer` (daily around 06:00 Europe/Amsterdam).
-- The daily automation is an agentic maintainer run, not a passive alert and not a second release pipeline.
+Maintainer automation contract:
+- This section is for agents maintaining the public packaging pipeline. It is not consumer-facing documentation and must not encode private deployment state.
+- Maintainer automation is an agentic repair loop, not a passive alert and not a second release pipeline.
 - Desired end state: `nix-openclaw` publishes the newest stable OpenClaw gateway that can be built from source, and the newest stable OpenClaw macOS app that upstream has actually published as a public `OpenClaw-*.zip`. These are independent tracks and their versions do not need to match.
 - Start from upstream/yolo/CI state: inspect latest OpenClaw releases, recent **Yolo Update Pins** runs, recent `CI` runs, current pins, and `scripts/update-pins.sh select`.
 - The first answer must be: does `nix-openclaw` publish the latest upstream version for both supported tracks? Answer `YES` only when `openclaw-gateway` matches the newest stable source release and `openclaw-app` matches the newest stable release with a public `OpenClaw-*.zip`.
 - If both tracks are current and yolo/CI are healthy, stop with a short CTO-level report: current gateway, latest upstream gateway, current app, latest published app, and whether action was needed.
-- If the desired end state is not true, keep working until it is true or until the exact blocker is proven. Diagnose across upstream release data, yolo selection, pin materialization, generated config options, package builds, smoke checks, module activation, workflow behavior, caches, and CI runner failures. Do not ask Josh to choose a repair strategy when the desired end state is clear.
-- macOS app publishing is out of scope for this repo and this automation. If upstream forgets to publish public macOS app assets, call it an upstream app publishing miss, keep the app pin on the newest public zip, keep packaging the latest stable source-built gateway, and repair nix-openclaw only if it fails to do that.
+- If the desired end state is not true, keep working until it is true or until the exact blocker is proven. Diagnose across upstream release data, yolo selection, pin materialization, generated config options, package builds, smoke checks, module activation, workflow behavior, caches, and CI runner failures. Do not ask for a repair strategy when the desired end state is clear.
+- macOS app publishing is out of scope for this repo and this automation. If upstream has not published public macOS app assets, call it an upstream app publishing miss, keep the app pin on the newest public zip, keep packaging the latest stable source-built gateway, and repair nix-openclaw only if it fails to do that.
 - If either track is stale or yolo/CI cannot maintain it, fix the nix-openclaw pipeline when the fix belongs here: edit the repo, self-review the diff until the review has no actionable findings, run the full gate, commit directly to `main`, push directly to `main`, and verify GitHub Actions on the pushed commit.
 - Full gate means the relevant targeted checks plus `scripts/check-flake-lock-owners.sh`, selector test, updater shell syntax, workflow YAML parse, `nix flake show --accept-flake-config`, Linux CI aggregator, Darwin CI aggregator when available, and `scripts/hm-activation-macos.sh` when a macOS runner is available.
 - No force push. No weakening Nix-owned package checks to get green. No separate PR flow unless direct push is blocked by GitHub policy.
