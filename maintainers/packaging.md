@@ -29,3 +29,12 @@ This repo ships a working Nix package for OpenClaw users, not just a pin mirror.
 - Keep runtime tools internal to the `openclaw` wrapper unless they are intentionally part of the public package surface.
 - QMD is the Nix-supported batteries-included local memory backend. Keep `qmd` internal to the `openclaw` wrapper PATH; users opt in with upstream config.
 - Keep files under 400 lines unless a maintainer explicitly accepts the larger file.
+
+## Investigations
+
+### mcporter and QMD
+
+- `mcporter` is an OpenClaw-owned optional MCP/CLI bridge, not a QMD requirement.
+- OpenClaw defaults to direct `qmd` CLI execution. Keep that as the Nix-supported baseline until measured startup or per-query overhead proves otherwise.
+- Package `mcporter` in `nix-openclaw-tools` as an optional tool when needed, but do not add it to the default `openclaw` runtime PATH just because QMD is bundled.
+- If `memory.qmd.mcporter.enabled = true`, nix-openclaw should make `mcporter` visible to that instance and require the matching mcporter server config for `qmd mcp`.

@@ -7,6 +7,22 @@ Purpose: extend OpenClaw capabilities without bloating core; ship tools + skills
 - **Not:** new transports/providers; model plumbing; secrets baked in; inline scripts or ad-hoc package-manager installs; a place for random config outside its scope.
 - Why not skills-only: skills without binaries can hallucinate capability. Plugins ground skills in real tools and deliver versioned, reproducible functionality.
 
+## Native OpenClaw Plugin Gap
+
+OpenClaw also has native runtime plugins: a plugin directory with `openclaw.plugin.json` plus a JS/TS entry loaded by the gateway. Channel plugins such as `openclaw-weixin` live in this layer.
+
+Current nix-openclaw `customPlugins` only implements the Nix-native capability bundle contract: package binaries on the gateway PATH, materialize skills, create state dirs, validate env files, and render optional tool settings. It does not yet tell OpenClaw to load a native plugin directory or enable the matching `plugins.entries.<id>` entry.
+
+PR #81 (`fix: copy plugin manifests into dist/extensions`) was related but not the missing external-plugin feature. It fixed bundled upstream plugin manifests missing from the packaged gateway `dist/extensions/*/openclaw.plugin.json` tree. Current packaging already copies those manifests and checks them in `openclaw-package-contents`.
+
+The next feature slice should bridge the existing Nix contract to OpenClaw native plugins:
+
+- Extend `openclawPlugin` with an optional native plugin declaration, for example `nativePlugins = [ { id = "openclaw-weixin"; path = "${pkg}/lib/openclaw/plugins/openclaw-weixin"; enable = true; } ];`.
+- For each enabled instance, append those paths to generated `plugins.load.paths`.
+- Add default `plugins.entries.<id>.enabled = true`, with user config still able to override it.
+- Keep native plugin config in `programs.openclaw.config` / `instances.<name>.config` so upstream schema validation remains the source of truth.
+- Add a fixture shaped like `openclaw-weixin` so `customPlugins = [{ source = ...; }]` proves both package/skill wiring and native plugin load wiring.
+
 ## Interface Contract (reference implementation: nix-openclaw)
 Every plugin artifact exposes the same fields (flake output `openclawPlugin` today, but the shape is host-agnostic):
 
