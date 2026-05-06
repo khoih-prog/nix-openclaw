@@ -44,8 +44,7 @@ check_no_broken_symlinks() {
 
 mkdir -p "$out/lib/openclaw" "$out/bin"
 
-# Build dir is ephemeral in Nix; moving avoids an expensive deep copy of node_modules.
-log_step "move build outputs" mv dist node_modules package.json "$out/lib/openclaw/"
+log_step "copy build outputs" cp -R dist node_modules package.json "$out/lib/openclaw/"
 if [ -d extensions ]; then
   log_step "copy extensions" cp -r extensions "$out/lib/openclaw/"
 fi
@@ -141,7 +140,3 @@ fi
 log_step "validate node_modules symlinks" check_no_broken_symlinks "$out/lib/openclaw/node_modules"
 
 log_step "wrap openclaw" bash -e -c '. "$STDENV_SETUP"; makeWrapper "$NODE_BIN" "$out/bin/openclaw" --add-flags "$out/lib/openclaw/dist/index.js" --set-default OPENCLAW_NIX_MODE "1"'
-
-if [ -n "${OPENCLAW_BUILD_ROOT_SH:-}" ]; then
-  log_step "discard build root" openclaw_cleanup_output_build_root
-fi
