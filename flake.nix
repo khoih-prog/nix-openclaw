@@ -14,6 +14,9 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
     nix-openclaw-tools.url = "github:openclaw/nix-openclaw-tools";
+    qmd.url = "github:tobi/qmd/v2.1.0";
+    qmd.inputs.flake-utils.follows = "flake-utils";
+    qmd.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -23,6 +26,7 @@
       flake-utils,
       home-manager,
       nix-openclaw-tools,
+      qmd,
     }:
     let
       openclawToolPkgsFor =
@@ -31,10 +35,14 @@
           nix-openclaw-tools.packages.${system}
         else
           { };
+      qmdPkgsFor =
+        system:
+        if qmd ? packages && builtins.hasAttr system qmd.packages then qmd.packages.${system} else { };
       overlay =
         final: prev:
         import ./nix/overlay.nix {
           openclawToolPkgs = openclawToolPkgsFor prev.stdenv.hostPlatform.system;
+          qmdPkgs = qmdPkgsFor prev.stdenv.hostPlatform.system;
         } final prev;
       sourceInfoStable = import ./nix/sources/openclaw-source.nix;
       systems = [
@@ -50,7 +58,12 @@
           overlays = [ overlay ];
         };
         openclawToolPkgs = openclawToolPkgsFor system;
-        qmdPackage = openclawToolPkgs.qmd or null;
+        qmdPkgs = qmdPkgsFor system;
+        qmdPackage =
+          if pkgs.stdenv.hostPlatform.isDarwin then
+            openclawToolPkgs.qmd or null
+          else
+            qmdPkgs.qmd or qmdPkgs.default or null;
         packageSetStable = import ./nix/packages {
           pkgs = pkgs;
           sourceInfo = sourceInfoStable;

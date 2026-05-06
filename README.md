@@ -158,6 +158,11 @@ Reference the README and templates/agent-first/flake.nix in the repo for the mod
 
 Your agent should do the setup work. You answer its short questions and confirm before it sends messages or changes external services.
 
+QMD packaging note for agents: Linux uses upstream `github:tobi/qmd`; Darwin
+uses the `nix-openclaw-tools` QMD repair package until upstream Darwin packaging
+is fixed. Keep both pinned to the same QMD release unless there is a tested
+reason to diverge.
+
 **What happens next:**
 1. Your agent sets everything up and runs `home-manager switch`
 2. You message your Telegram bot for the first time
