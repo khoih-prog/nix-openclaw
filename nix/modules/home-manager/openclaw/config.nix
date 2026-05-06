@@ -205,6 +205,7 @@ let
         name = openclawLib.toRelative inst.configPath;
         value = {
           text = configJson;
+          force = true;
         };
       };
       configFile = configFile;
