@@ -31,6 +31,10 @@ if ! grep -q "${QMD_PACKAGE}/bin" "$openclaw_bin"; then
   echo "openclaw wrapper does not include qmd on the internal runtime PATH" >&2
   exit 1
 fi
+if ! grep -q "OPENCLAW_PINNED_WRITE_PYTHON" "$openclaw_bin"; then
+  echo "openclaw wrapper does not pin a Nix Python for safe writes" >&2
+  exit 1
+fi
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT

@@ -2,6 +2,7 @@
   lib,
   stdenvNoCC,
   makeWrapper,
+  python3Minimal,
   openclaw-gateway,
   openclaw-app ? null,
   extendedTools ? [ ],
@@ -28,6 +29,7 @@ stdenvNoCC.mkDerivation {
   env = {
     OPENCLAW_APP_PACKAGE = lib.optionalString (openclaw-app != null) "${openclaw-app}";
     OPENCLAW_GATEWAY_BIN = "${openclaw-gateway}/bin/openclaw";
+    OPENCLAW_PINNED_WRITE_PYTHON = "${python3Minimal}/bin/python3";
     OPENCLAW_TOOLS_PATH = toolsPath;
     STDENV_SETUP = "${stdenvNoCC}/setup";
   };
