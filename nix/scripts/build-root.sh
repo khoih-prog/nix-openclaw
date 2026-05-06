@@ -73,6 +73,14 @@ openclaw_cleanup_output_build_root() {
   openclaw_cleanup_output_pnpm_store
 
   case "$build_root" in
-    "$out"/*) rm -rf "$build_root" ;;
+    "$out"/*)
+      if [ -n "${NIX_BUILD_TOP:-}" ] && [ -d "$NIX_BUILD_TOP" ]; then
+        discard="$NIX_BUILD_TOP/.openclaw-build-root-discard-$$"
+        if mv "$build_root" "$discard" 2>/dev/null; then
+          return 0
+        fi
+      fi
+      rm -rf "$build_root"
+      ;;
   esac
 }

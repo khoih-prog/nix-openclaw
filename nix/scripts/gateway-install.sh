@@ -140,8 +140,8 @@ fi
 
 log_step "validate node_modules symlinks" check_no_broken_symlinks "$out/lib/openclaw/node_modules"
 
-bash -e -c '. "$STDENV_SETUP"; makeWrapper "$NODE_BIN" "$out/bin/openclaw" --add-flags "$out/lib/openclaw/dist/index.js" --set-default OPENCLAW_NIX_MODE "1"'
+log_step "wrap openclaw" bash -e -c '. "$STDENV_SETUP"; makeWrapper "$NODE_BIN" "$out/bin/openclaw" --add-flags "$out/lib/openclaw/dist/index.js" --set-default OPENCLAW_NIX_MODE "1"'
 
 if [ -n "${OPENCLAW_BUILD_ROOT_SH:-}" ]; then
-  openclaw_cleanup_output_build_root
+  log_step "discard build root" openclaw_cleanup_output_build_root
 fi
