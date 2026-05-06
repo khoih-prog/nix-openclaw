@@ -11,27 +11,12 @@ source_manifest="$2"
 
 manifest_dir="$(dirname "$manifest")"
 mkdir -p "$manifest_dir"
-old_manifest="$(mktemp)"
 new_manifest="$(mktemp)"
-trap 'rm -f "$old_manifest" "$new_manifest"' EXIT
-
-if [ -f "$manifest" ]; then
-  cp "$manifest" "$old_manifest"
-fi
-
-was_managed() {
-  grep -Fx -- "$1" "$old_manifest" >/dev/null 2>&1
-}
+trap 'rm -f "$new_manifest"' EXIT
 
 copy_path() {
   source="$1"
   target="$2"
-
-  if [ -e "$target" ] && [ ! -L "$target" ] && ! was_managed "$target" && [ -w "$target" ]; then
-    echo "OpenClaw workspace path exists and is not managed by Nix: $target" >&2
-    echo "Move it into programs.openclaw.documents or remove it before switching." >&2
-    exit 1
-  fi
 
   rm -rf "$target"
   mkdir -p "$(dirname "$target")"
