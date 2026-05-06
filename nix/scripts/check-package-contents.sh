@@ -17,6 +17,8 @@ require_path() {
 
 require_path "${root}/extensions"
 require_path "${root}/extensions/memory-core"
+require_path "${root}/extensions/memory-core/openclaw.plugin.json"
+require_path "${root}/dist/extensions/memory-core/openclaw.plugin.json"
 require_path "${root}/docs/reference/templates"
 require_path "${root}/docs/reference/templates/AGENTS.md"
 require_path "${root}/docs/reference/templates/SOUL.md"

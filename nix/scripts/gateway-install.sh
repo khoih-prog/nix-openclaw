@@ -42,11 +42,24 @@ check_no_broken_symlinks() {
   rm -f "$broken_tmp"
 }
 
+copy_extension_manifests() {
+  if [ ! -d extensions ]; then
+    return 0
+  fi
+
+  mkdir -p "$out/lib/openclaw/extensions"
+  find extensions -mindepth 2 -maxdepth 2 -name openclaw.plugin.json -type f -print | while IFS= read -r manifest; do
+    name="$(basename "$(dirname "$manifest")")"
+    mkdir -p "$out/lib/openclaw/extensions/$name"
+    cp "$manifest" "$out/lib/openclaw/extensions/$name/openclaw.plugin.json"
+  done
+}
+
 mkdir -p "$out/lib/openclaw" "$out/bin"
 
 log_step "copy build outputs" cp -R dist node_modules package.json "$out/lib/openclaw/"
 if [ -d extensions ]; then
-  log_step "copy extensions" cp -r extensions "$out/lib/openclaw/"
+  log_step "copy extension manifests" copy_extension_manifests
 fi
 if [ -d skills ]; then
   log_step "copy bundled skills" cp -r skills "$out/lib/openclaw/"
