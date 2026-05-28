@@ -42,6 +42,7 @@ let
     "releaseVersion"
     "applyPublicSurfaceHardlinksPatch"
     "applySkipPluginAutoEnableNixModePatch"
+    "applyNixStorePluginOwnershipPatch"
     "publicSurfaceHardlinksPatch"
     "fsSafeSource"
   ];
@@ -137,6 +138,11 @@ let
     PATCH_SKIP_PLUGIN_AUTO_ENABLE_NIX_MODE =
       if sourceInfo.applySkipPluginAutoEnableNixModePatch or true then
         "${../patches/skip-plugin-auto-enable-persist-in-nix-mode.patch}"
+      else
+        "";
+    PATCH_NIX_STORE_PLUGIN_OWNERSHIP =
+      if sourceInfo.applyNixStorePluginOwnershipPatch or false then
+        "${../patches/allow-nix-store-plugin-ownership.patch}"
       else
         "";
     PROMOTE_PNPM_INTEGRITY_SH = "${../scripts/promote-pnpm-integrity.sh}";

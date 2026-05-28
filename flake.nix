@@ -85,11 +85,20 @@
           };
         };
 
-        packages = packageSetStable // {
-          default = packageSetStable.openclaw;
-          openclaw-dogfood = packageSetDogfood.openclaw;
-          openclaw-gateway-dogfood = packageSetDogfood.openclaw-gateway;
-        };
+        packages =
+          (builtins.removeAttrs packageSetStable [ "openclawRuntimePlugins" ])
+          // {
+            default = packageSetStable.openclaw;
+            openclaw-dogfood = packageSetDogfood.openclaw;
+            openclaw-gateway-dogfood = packageSetDogfood.openclaw-gateway;
+          }
+          // (builtins.mapAttrs (name: package: package) {
+            openclaw-runtime-plugin-slack = packageSetStable.openclawRuntimePlugins.slack;
+            openclaw-runtime-plugin-discord = packageSetStable.openclawRuntimePlugins.discord;
+            openclaw-runtime-plugin-brave = packageSetStable.openclawRuntimePlugins.brave;
+            openclaw-runtime-plugin-diagnostics-prometheus =
+              packageSetStable.openclawRuntimePlugins."diagnostics-prometheus";
+          });
 
         apps = {
           openclaw = flake-utils.lib.mkApp { drv = packageSetStable.openclaw; };
@@ -152,6 +161,7 @@
                 packageSetStable.openclaw
                 packageSetStable.openclaw-gateway
               ]
+              ++ (builtins.attrValues packageSetStable.openclawRuntimePlugins)
               ++ (builtins.attrValues baseChecks);
             };
           };

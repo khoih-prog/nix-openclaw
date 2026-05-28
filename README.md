@@ -71,15 +71,62 @@ You talk to Telegram, your machine does things.
 
 ## OpenClaw Plugins vs nix-openclaw Plugins
 
-Most people asking about plugins mean **OpenClaw plugins**: JavaScript runtime plugins loaded by the OpenClaw gateway, usually from npm or ClawHub. Channel plugins such as Weixin or WhatsApp are OpenClaw plugins. **nix-openclaw does not support those yet.**
+Most people asking about plugins mean **OpenClaw plugins**: JavaScript runtime plugins loaded by the OpenClaw gateway, usually from npm or ClawHub. Channel plugins such as Slack, Discord, Weixin, or WhatsApp are OpenClaw plugins.
 
-This repo's plugin docs are about **nix-openclaw plugins**: Nix-managed tools and skills exposed through the `openclawPlugin` flake output. They are useful for tools such as `discrawl`, `summarize`, and `peekaboo`; they are not a way to install OpenClaw runtime plugins.
+nix-openclaw supports a small curated set of official OpenClaw runtime plugins declaratively with `programs.openclaw.runtimePlugins`. It does not support arbitrary npm, ClawHub, or third-party OpenClaw runtime plugins yet.
+
+```nix
+programs.openclaw = {
+  runtimePlugins = [ "slack" ];
+
+  # Runtime plugin config stays in upstream OpenClaw config.
+  config.channels.slack.enabled = true;
+};
+```
+
+This repo's plugin docs are about **nix-openclaw plugins**: Nix-managed tools and skills exposed through the `openclawPlugin` flake output. They are useful for tools such as `discrawl`, `summarize`, and `peekaboo`; they are not a way to install OpenClaw runtime plugins from npm.
 
 | You want | What it is | Status |
 |----------|------------|--------|
-| Weixin, WhatsApp, ClawHub/npm runtime plugins | OpenClaw plugin | Not supported yet |
+| Slack, Discord, Brave, diagnostics-prometheus | OpenClaw runtime plugin | Supported with `runtimePlugins` |
+| Weixin, WhatsApp, arbitrary ClawHub/npm runtime plugins | OpenClaw runtime plugin | Not supported yet |
 | `discrawl`, `summarize`, `peekaboo`, other bundled tools | nix-openclaw plugin | Supported |
 | A pinned CLI repo with skills | custom nix-openclaw plugin | Supported, advanced |
+
+### Installing OpenClaw runtime plugins
+
+Use `runtimePlugins` for supported OpenClaw runtime plugins:
+
+```nix
+programs.openclaw = {
+  runtimePlugins = [
+    "slack"
+  ];
+
+  config.channels.slack = {
+    enabled = true;
+    appToken.source = "env";
+    appToken.provider = "env";
+    appToken.id = "SLACK_APP_TOKEN";
+    botToken.source = "env";
+    botToken.provider = "env";
+    botToken.id = "SLACK_BOT_TOKEN";
+  };
+};
+```
+
+Then rebuild your Nix/Home Manager config. Do not run `openclaw plugins install`; nix-openclaw renders the plugin load path into OpenClaw config.
+
+Supported ids:
+
+| id | npm package |
+|----|-------------|
+| `slack` | `@openclaw/slack` |
+| `discord` | `@openclaw/discord` |
+| `brave` | `@openclaw/brave-plugin` |
+| `diagnostics-prometheus` | `@openclaw/diagnostics-prometheus` |
+
+`runtimePlugins` only selects and packages the plugin. Runtime settings stay in `programs.openclaw.config`, using the upstream OpenClaw config shape for that plugin. Do not use `customPlugins.source = "npm:..."`; nix-openclaw rejects that path because it would reintroduce mutable npm install behavior.
 
 ---
 
@@ -280,7 +327,7 @@ All state lives in `~/.openclaw/`. Logs at `/tmp/openclaw/openclaw-gateway.log`.
 
 > **Note:** Complete the [Quick Start](#quick-start) first to get OpenClaw running. Then come back here to add plugins.
 
-These docs are for nix-openclaw plugins only. OpenClaw runtime plugins are not supported yet; see [OpenClaw Plugins vs nix-openclaw Plugins](#openclaw-plugins-vs-nix-openclaw-plugins).
+These docs are for nix-openclaw plugins only. For OpenClaw runtime plugins such as Slack or Discord, use `programs.openclaw.runtimePlugins`; see [OpenClaw Plugins vs nix-openclaw Plugins](#openclaw-plugins-vs-nix-openclaw-plugins).
 
 ### Bundled plugins
 

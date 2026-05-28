@@ -87,6 +87,12 @@
       description = "Plugins enabled for this instance (includes bundled plugin toggles).";
     };
 
+    runtimePlugins = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = openclawLib.cfg.runtimePlugins;
+      description = "Curated OpenClaw npm runtime plugin ids for this instance. Overrides the top-level runtimePlugins list when set.";
+    };
+
     config = lib.mkOption {
       type = lib.types.submodule { options = openclawLib.generatedConfigOptions; };
       default = { };

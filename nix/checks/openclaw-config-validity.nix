@@ -71,6 +71,7 @@ let
             lib.file.mkOutOfStoreSymlink = path: path;
             programs.openclaw = {
               enable = true;
+              runtimePlugins = [ "slack" ];
               launchd.enable = false;
               systemd.enable = false;
               instances.default = {
@@ -107,7 +108,10 @@ stdenv.mkDerivation {
   dontConfigure = true;
   dontBuild = true;
 
-  nativeBuildInputs = [ nodejs_22 ];
+  nativeBuildInputs = [
+    nodejs_22
+    pkgs.openclawRuntimePlugins.slack
+  ];
 
   env = {
     OPENCLAW_CONFIG_PATH = configFile;

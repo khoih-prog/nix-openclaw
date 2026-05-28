@@ -23,6 +23,13 @@ let
     inherit sourceInfo;
     inherit pnpm_11;
   };
+  runtimePluginLocks = import ../generated/openclaw-runtime-plugins;
+  buildOpenClawRuntimePlugin = pkgs.callPackage ../lib/openclaw-runtime-plugin.nix {
+    openclawPackage = openclawGateway;
+  };
+  openclawRuntimePlugins = pkgs.lib.mapAttrs (
+    _name: lock: buildOpenClawRuntimePlugin lock
+  ) runtimePluginLocks;
   openclawApp = if isDarwin then pkgs.callPackage ./openclaw-app.nix { } else null;
   openclawBundle = pkgs.callPackage ./openclaw-batteries.nix {
     openclaw-gateway = openclawGateway;
@@ -33,6 +40,7 @@ let
 in
 {
   inherit pnpm_11;
+  inherit openclawRuntimePlugins;
   openclaw-gateway = openclawGateway;
   openclaw = openclawBundle;
 }

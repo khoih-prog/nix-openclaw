@@ -5,6 +5,7 @@
   pnpmMajor = "11";
   applyPublicSurfaceHardlinksPatch = false;
   applySkipPluginAutoEnableNixModePatch = false;
+  applyNixStorePluginOwnershipPatch = true;
   releaseTag = "v2026.5.26";
   releaseVersion = "2026.5.26";
   rev = "10ad3aa16068baa84a1bd9ac4f7d42ae725cedb7";

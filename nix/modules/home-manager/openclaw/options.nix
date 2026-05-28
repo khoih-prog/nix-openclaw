@@ -11,7 +11,7 @@ let
     options = {
       source = lib.mkOption {
         type = lib.types.str;
-        description = "nix-openclaw plugin source. Use a plugin flake source (github:/path:). npm: OpenClaw runtime sources are implementation-only and not supported yet.";
+        description = "nix-openclaw plugin source. Use a plugin flake source (github:/path:). OpenClaw npm runtime plugins use programs.openclaw.runtimePlugins.";
       };
       config = lib.mkOption {
         type = lib.types.attrs;
@@ -21,17 +21,17 @@ let
       id = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description = "Implementation-only OpenClaw runtime plugin id for npm: sources.";
+        description = "Unsupported legacy field for npm: runtime plugin sources.";
       };
       enabled = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Implementation-only default enabled state for an OpenClaw runtime plugin entry.";
+        description = "Unsupported legacy field for npm: runtime plugin sources.";
       };
       hash = lib.mkOption {
         type = lib.types.str;
         default = lib.fakeHash;
-        description = "Implementation-only recursive output hash for npm: runtime plugin sources.";
+        description = "Unsupported legacy field for npm: runtime plugin sources.";
       };
     };
   };
@@ -163,6 +163,16 @@ in
       type = lib.types.listOf pluginOptionType;
       default = [ ];
       description = "Custom/community nix-openclaw plugins (merged with bundled plugin toggles).";
+    };
+
+    runtimePlugins = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      example = [
+        "slack"
+        "discord"
+      ];
+      description = "Curated OpenClaw npm runtime plugin ids to package immutably and load through OpenClaw's plugins.load.paths.";
     };
 
     bundledPlugins = lib.mapAttrs (name: plugin: {

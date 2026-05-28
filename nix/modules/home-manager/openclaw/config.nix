@@ -27,6 +27,7 @@ let
     launchd = cfg.launchd;
     systemd = cfg.systemd;
     plugins = openclawLib.effectivePlugins;
+    runtimePlugins = cfg.runtimePlugins;
     config = { };
     appDefaults = {
       enable = true;
@@ -66,6 +67,7 @@ let
       plugins
       ;
   };
+  runtimePlugins = import ./runtime-plugins.nix { inherit lib pkgs; };
 
   stripNulls =
     value:
@@ -142,14 +144,30 @@ let
       existingSkillLoadDirs = (
         ((mergedConfigWithoutLoadPaths.skills or { }).load or { }).extraDirs or [ ]
       );
-      generatedLoadConfig =
-        lib.optionalAttrs (openclawPluginLoadPaths != [ ]) {
+      existingAllowList = ((mergedConfigWithoutLoadPaths.plugins or { }).allow or null);
+      existingDenyList = ((userConfig.plugins or { }).deny or [ ]);
+      userPluginEntries = ((userConfig.plugins or { }).entries or { });
+      runtimePluginConfig = runtimePlugins.forInstance {
+        inherit name existingAllowList userPluginEntries;
+        ids = inst.runtimePlugins;
+        existingLoadPaths = existingOpenClawPluginLoadPaths;
+        denyList = existingDenyList;
+        nixOpenClawPluginIds = map (p: p.id) (plugins.openclawPluginsFor name);
+      };
+      generatedPluginConfig = lib.recursiveUpdate (lib.optionalAttrs
+        (runtimePluginConfig.loadPaths != [ ] || openclawPluginLoadPaths != [ ])
+        {
           plugins = {
             load = {
-              paths = lib.unique (openclawPluginLoadPaths ++ existingOpenClawPluginLoadPaths);
+              paths = lib.unique (
+                runtimePluginConfig.loadPaths ++ openclawPluginLoadPaths ++ existingOpenClawPluginLoadPaths
+              );
             };
           };
         }
+      ) runtimePluginConfig.config;
+      generatedLoadConfig =
+        generatedPluginConfig
         // lib.optionalAttrs (nixSkillLoadDirs != [ ]) {
           skills = {
             load = {
@@ -332,6 +350,8 @@ let
       appInstall = appInstall;
       package = package;
       qmdEnabled = qmdEnabled;
+      runtimePluginPackages = runtimePluginConfig.packages;
+      assertions = runtimePluginConfig.assertions;
       launchdLabel =
         if pkgs.stdenv.hostPlatform.isDarwin && inst.launchd.enable then inst.launchd.label else null;
     };
@@ -355,6 +375,9 @@ let
   appInstalls = lib.filter (item: item != null) (map (item: item.appInstall) instanceConfigs);
   launchdLabels = lib.filter (label: label != null) (map (item: item.launchdLabel) instanceConfigs);
   launchdLabelArgs = lib.concatStringsSep " " (map lib.escapeShellArg launchdLabels);
+  runtimePluginPackagesAll = lib.unique (
+    lib.flatten (map (item: item.runtimePluginPackages) instanceConfigs)
+  );
 
   appDefaults = lib.foldl' (acc: item: lib.recursiveUpdate acc item.appDefaults) { } instanceConfigs;
   appDefaultsEnabled = lib.filterAttrs (_: inst: inst.appDefaults.enable) enabledInstances;
@@ -376,6 +399,7 @@ in
     ++ files.documentsAssertions
     ++ files.duplicateSkillAssertion
     ++ plugins.pluginAssertions
+    ++ lib.flatten (map (item: item.assertions) instanceConfigs)
     ++ [
       {
         assertion = !cfg.qmd.prewarmModels.enable || qmdPackage != null;
@@ -427,6 +451,16 @@ in
         ) instanceConfigs
       )}
     '';
+
+    home.activation.openclawRuntimePlugins = lib.mkIf (runtimePluginPackagesAll != [ ]) (
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        ${lib.concatStringsSep "\n" (
+          map (
+            package: "run --quiet ${lib.getExe' pkgs.coreutils "test"} -f ${package}/openclaw.plugin.json"
+          ) runtimePluginPackagesAll
+        )}
+      ''
+    );
 
     home.activation.openclawCodexRuntimeProfiles = lib.mkIf (codexRuntimeProfileEntries != [ ]) (
       lib.hm.dag.entryAfter [ "openclawDirs" ] ''

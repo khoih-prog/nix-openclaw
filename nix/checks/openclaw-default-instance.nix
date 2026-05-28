@@ -133,6 +133,13 @@ let
     in
     if matching != [ ] then "ok" else throw "${name}: expected assertion containing `${needle}`.";
 
+  requireEvalFailure =
+    name: value:
+    let
+      attempted = builtins.tryEval (builtins.deepSeq value "ok");
+    in
+    if attempted.success then throw "${name}: expected evaluation failure." else "ok";
+
   qmdPath =
     if pkgs.openclawPackages ? qmd then
       builtins.unsafeDiscardStringContext "${pkgs.openclawPackages.qmd}/bin"
@@ -494,6 +501,121 @@ let
           throw "User config could not override OpenClaw plugin enabled=false default."
       );
 
+  runtimePluginEval = moduleEval {
+    runtimePlugins = [ "slack" ];
+    config.plugins.allow = [ "memory-core" ];
+  };
+  runtimePluginConfig = builtins.fromJSON (
+    builtins.unsafeDiscardStringContext
+      runtimePluginEval.config.home.file.".openclaw/openclaw.json".text
+  );
+  runtimePluginLoadPaths = ((runtimePluginConfig.plugins or { }).load or { }).paths or [ ];
+  runtimePluginEntry = ((runtimePluginConfig.plugins or { }).entries or { }).slack or { };
+  runtimePluginAllow = ((runtimePluginConfig.plugins or { }).allow or [ ]);
+  runtimePluginCheck =
+    builtins.deepSeq (requireNoAssertionFailures "runtimePlugins" runtimePluginEval)
+      (
+        if !(lib.any (path: lib.hasInfix "openclaw-runtime-plugin-slack" path) runtimePluginLoadPaths) then
+          throw "runtimePlugins did not add Slack to plugins.load.paths."
+        else if (runtimePluginEntry.enabled or false) != true then
+          throw "runtimePlugins did not enable the Slack plugin entry."
+        else if
+          runtimePluginAllow != [
+            "memory-core"
+            "slack"
+          ]
+        then
+          throw "runtimePlugins did not merge Slack into an existing plugins.allow list."
+        else
+          "ok"
+      );
+
+  runtimePluginInstanceEval = moduleEval {
+    runtimePlugins = [ "slack" ];
+    instances.one.runtimePlugins = [ ];
+    instances.two.runtimePlugins = [
+      "discord"
+      "diagnostics-prometheus"
+    ];
+  };
+  runtimePluginInstanceOneConfig = builtins.fromJSON (
+    builtins.unsafeDiscardStringContext
+      runtimePluginInstanceEval.config.home.file.".openclaw-one/openclaw.json".text
+  );
+  runtimePluginInstanceTwoConfig = builtins.fromJSON (
+    builtins.unsafeDiscardStringContext
+      runtimePluginInstanceEval.config.home.file.".openclaw-two/openclaw.json".text
+  );
+  runtimePluginInstanceOneLoadPaths =
+    ((runtimePluginInstanceOneConfig.plugins or { }).load or { }).paths or [ ];
+  runtimePluginInstanceTwoLoadPaths =
+    ((runtimePluginInstanceTwoConfig.plugins or { }).load or { }).paths or [ ];
+  runtimePluginInstanceCheck =
+    builtins.deepSeq (requireNoAssertionFailures "runtimePlugins instances" runtimePluginInstanceEval)
+      (
+        if runtimePluginInstanceOneLoadPaths != [ ] then
+          throw "Instance runtimePlugins = [] did not override top-level runtimePlugins."
+        else if
+          !(lib.any (
+            path: lib.hasInfix "openclaw-runtime-plugin-discord" path
+          ) runtimePluginInstanceTwoLoadPaths)
+        then
+          throw "Instance runtimePlugins did not render its selected plugin."
+        else if
+          !(lib.any (
+            path: lib.hasInfix "openclaw-runtime-plugin-diagnostics-prometheus" path
+          ) runtimePluginInstanceTwoLoadPaths)
+        then
+          throw "Instance runtimePlugins did not support hyphenated plugin ids."
+        else
+          "ok"
+      );
+
+  runtimePluginDuplicateEval = moduleEval {
+    runtimePlugins = [
+      "slack"
+      "slack"
+    ];
+  };
+  runtimePluginDuplicateCheck =
+    requireAssertionFailure "duplicate runtimePlugins" "runtimePlugins contains duplicate ids: slack"
+      runtimePluginDuplicateEval;
+
+  runtimePluginUnsupportedEval = moduleEval {
+    runtimePlugins = [ "codex" ];
+  };
+  runtimePluginUnsupportedCheck =
+    requireAssertionFailure "unsupported runtimePlugins"
+      "runtimePlugins contains unsupported ids: codex"
+      runtimePluginUnsupportedEval;
+
+  runtimePluginRawLoadPathEval = moduleEval {
+    runtimePlugins = [ "slack" ];
+    config.plugins.load.paths = [ "/tmp/user-openclaw-runtime-plugin" ];
+  };
+  runtimePluginRawLoadPathCheck =
+    requireAssertionFailure "runtimePlugins raw load path"
+      "runtimePlugins cannot be mixed with raw programs.openclaw.config.plugins.load.paths"
+      runtimePluginRawLoadPathEval;
+
+  runtimePluginDisabledEval = moduleEval {
+    runtimePlugins = [ "slack" ];
+    config.plugins.entries.slack.enabled = false;
+  };
+  runtimePluginDisabledCheck =
+    requireAssertionFailure "runtimePlugins disabled entry"
+      "runtimePlugins selected ids disabled in config.plugins.entries: slack"
+      runtimePluginDisabledEval;
+
+  runtimePluginDeniedEval = moduleEval {
+    runtimePlugins = [ "slack" ];
+    config.plugins.deny = [ "slack" ];
+  };
+  runtimePluginDeniedCheck =
+    requireAssertionFailure "runtimePlugins denied entry"
+      "runtimePlugins selected ids denied in config.plugins.deny: slack"
+      runtimePluginDeniedEval;
+
   npmRuntimePluginEval = moduleEval {
     customPlugins = [
       {
@@ -503,27 +625,9 @@ let
       }
     ];
   };
-  npmRuntimePluginConfig = builtins.fromJSON (
-    builtins.unsafeDiscardStringContext
-      npmRuntimePluginEval.config.home.file.".openclaw/openclaw.json".text
+  npmRuntimePluginCheck = requireEvalFailure "npm customPlugins bridge" (
+    npmRuntimePluginEval.config.home.file.".openclaw/openclaw.json".text
   );
-  npmRuntimePluginLoadPaths = ((npmRuntimePluginConfig.plugins or { }).load or { }).paths or [ ];
-  npmRuntimePluginEntry =
-    ((npmRuntimePluginConfig.plugins or { }).entries or { }).openclaw-weixin or { };
-  npmRuntimePluginCheck =
-    builtins.deepSeq (requireNoAssertionFailures "npm OpenClaw runtime plugin" npmRuntimePluginEval)
-      (
-        if
-          !(lib.any (
-            path: lib.hasInfix "openclaw-runtime-plugin-openclaw-weixin" path
-          ) npmRuntimePluginLoadPaths)
-        then
-          throw "npm OpenClaw runtime plugin root was not added to plugins.load.paths."
-        else if (npmRuntimePluginEntry.enabled or false) != true then
-          throw "npm OpenClaw runtime plugin entry default was not enabled."
-        else
-          "ok"
-      );
 
   checkKey = builtins.deepSeq [
     defaultCheck
@@ -540,6 +644,13 @@ let
     openclawPluginCheck
     openclawPluginOverrideCheck
     openclawPluginEnableOverrideCheck
+    runtimePluginCheck
+    runtimePluginInstanceCheck
+    runtimePluginDuplicateCheck
+    runtimePluginUnsupportedCheck
+    runtimePluginRawLoadPathCheck
+    runtimePluginDisabledCheck
+    runtimePluginDeniedCheck
     npmRuntimePluginCheck
   ] "ok";
 

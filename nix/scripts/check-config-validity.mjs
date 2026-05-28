@@ -97,6 +97,50 @@ try {
     process.exit(1);
   }
 
+  const plugins = spawnSync(openclaw, ["plugins", "list", "--json", "--verbose"], {
+    env,
+    encoding: "utf8",
+  });
+
+  if (plugins.status !== 0) {
+    if (plugins.stdout) {
+      process.stdout.write(plugins.stdout);
+    }
+    if (plugins.stderr) {
+      process.stderr.write(plugins.stderr);
+    }
+    console.error(`openclaw plugins list failed with exit code ${plugins.status ?? "unknown"}`);
+    process.exit(plugins.status ?? 1);
+  }
+
+  const pluginList = JSON.parse(plugins.stdout);
+  const slackPlugin = (pluginList.plugins ?? []).find((plugin) => plugin.id === "slack");
+  if (!slackPlugin) {
+    console.error(
+      `openclaw plugins list ids: ${JSON.stringify((pluginList.plugins ?? []).map((plugin) => ({
+        id: plugin.id,
+        origin: plugin.origin,
+        status: plugin.status,
+        diagnostics: plugin.diagnostics,
+      })))}`,
+    );
+    console.error(`openclaw plugins diagnostics: ${JSON.stringify(pluginList.diagnostics ?? [])}`);
+    console.error("openclaw plugins list did not discover the Slack runtime plugin");
+    process.exit(1);
+  }
+  if (slackPlugin.origin !== "config" || slackPlugin.enabled !== true || slackPlugin.status !== "loaded") {
+    console.error(`Slack runtime plugin was not loaded from config: ${JSON.stringify(slackPlugin)}`);
+    process.exit(1);
+  }
+  if (!(slackPlugin.channelIds ?? []).includes("slack")) {
+    console.error(`Slack runtime plugin did not expose the slack channel: ${JSON.stringify(slackPlugin)}`);
+    process.exit(1);
+  }
+  if (slackPlugin.dependencyStatus?.requiredInstalled !== true) {
+    console.error(`Slack runtime plugin dependencies were not installed: ${JSON.stringify(slackPlugin)}`);
+    process.exit(1);
+  }
+
   console.log("openclaw config validation: ok");
 } finally {
   fs.rmSync(tmpDir, { recursive: true, force: true });

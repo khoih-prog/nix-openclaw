@@ -8,7 +8,6 @@
 let
   resolvePath = openclawLib.resolvePath;
   toRelative = openclawLib.toRelative;
-  mkNpmRuntimePlugin = pkgs.callPackage ../../../lib/npm-runtime-plugin.nix { };
 
   normalizeOpenClawPlugin =
     pluginSource: name: entry:
@@ -32,52 +31,16 @@ let
       plugin = name;
     };
 
-  resolveNpmRuntimePlugin =
-    plugin:
-    let
-      id = plugin.id or (throw "OpenClaw npm runtime plugin ${plugin.source} requires id");
-      # TODO: This is only a partial bridge for OpenClaw runtime plugins.
-      # Proper support needs a structural fix that proves the gateway loads the
-      # built plugin root and exposes its channel/register hook end to end.
-      path = mkNpmRuntimePlugin {
-        inherit id;
-        source = plugin.source;
-        hash = plugin.hash or lib.fakeHash;
-      };
-    in
-    if (plugin.config or { }) != { } then
-      throw "OpenClaw npm runtime plugin ${plugin.source} must put runtime config under programs.openclaw.config.plugins.entries.${id}.config, not customPlugins.config"
-    else
-      {
-        source = plugin.source;
-        name = id;
-        skills = [ ];
-        packages = [ ];
-        plugins = [
-          {
-            inherit id path;
-            enabled = plugin.enabled or true;
-            source = plugin.source;
-            plugin = id;
-          }
-        ];
-        needs = {
-          stateDirs = [ ];
-          requiredEnv = [ ];
-        };
-        config = { };
-      };
-
   resolveFlakePlugin =
     plugin:
     let
       _ =
         if (plugin.id or null) != null then
-          throw "Plugin ${plugin.source}: id is only valid for npm: OpenClaw runtime plugin sources"
+          throw "Plugin ${plugin.source}: id is not valid for customPlugins; OpenClaw runtime plugins use programs.openclaw.runtimePlugins"
         else if (plugin.hash or lib.fakeHash) != lib.fakeHash then
-          throw "Plugin ${plugin.source}: hash is only valid for npm: OpenClaw runtime plugin sources"
+          throw "Plugin ${plugin.source}: hash is not valid for customPlugins; OpenClaw runtime plugins use programs.openclaw.runtimePlugins"
         else if (plugin.enabled or true) != true then
-          throw "Plugin ${plugin.source}: enabled is only valid for npm: OpenClaw runtime plugin sources"
+          throw "Plugin ${plugin.source}: enabled is not valid for customPlugins; OpenClaw runtime plugins use programs.openclaw.runtimePlugins"
         else
           null;
       system = pkgs.stdenv.hostPlatform.system;
@@ -113,7 +76,7 @@ let
   resolvePlugin =
     plugin:
     if lib.hasPrefix "npm:" plugin.source then
-      resolveNpmRuntimePlugin plugin
+      throw "customPlugins.source = \"${plugin.source}\" is not supported for OpenClaw npm runtime plugins. Use programs.openclaw.runtimePlugins with a curated plugin id instead."
     else
       resolveFlakePlugin plugin;
 
