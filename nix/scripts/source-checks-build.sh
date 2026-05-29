@@ -77,6 +77,12 @@ if [ -z "${tsc_cli:-}" ] || [ ! -f "$tsc_cli" ]; then
   exit 1
 fi
 
+tsgo_script="scripts/run-tsgo.mjs"
+if [ ! -f "$tsgo_script" ]; then
+  echo "OpenClaw tsgo wrapper not found: $tsgo_script" >&2
+  exit 1
+fi
+
 if [ -z "${STDENV_SETUP:-}" ]; then
   echo "STDENV_SETUP is not set" >&2
   exit 1
@@ -107,7 +113,10 @@ log_step "node $tsdown_cli" env \
   OPENCLAW_RUN_NODE_SKIP_DTS_BUILD=1 \
   node "$tsdown_cli" --config-loader unrun --logLevel warn
 log_step "node scripts/build-stamp.mjs" node scripts/build-stamp.mjs
-log_step "node $tsc_cli" node "$tsc_cli" -p tsconfig.plugin-sdk.dts.json
+case "$(uname -s)" in
+  Darwin) log_step "node scripts/run-tsgo.mjs" node "$tsgo_script" -p tsconfig.plugin-sdk.dts.json --declaration true ;;
+  *) log_step "node $tsc_cli" node "$tsc_cli" -p tsconfig.plugin-sdk.dts.json ;;
+esac
 log_step "node --import tsx scripts/write-plugin-sdk-entry-dts.ts" node --import tsx scripts/write-plugin-sdk-entry-dts.ts
 if [ -f "scripts/copy-plugin-sdk-root-alias.mjs" ]; then
   log_step "node scripts/copy-plugin-sdk-root-alias.mjs" node scripts/copy-plugin-sdk-root-alias.mjs
