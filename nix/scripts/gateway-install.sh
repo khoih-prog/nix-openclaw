@@ -68,6 +68,10 @@ fi
 if [ -d skills ]; then
   log_step "copy bundled skills" cp -r skills "$out/lib/openclaw/"
 fi
+if [ -d src/agents/templates ]; then
+  mkdir -p "$out/lib/openclaw/src/agents"
+  log_step "copy agent workspace templates" cp -r src/agents/templates "$out/lib/openclaw/src/agents/"
+fi
 
 # Gateway plugin discovery looks under dist/extensions/*/openclaw.plugin.json.
 # Upstream's build emits JS into dist/extensions but leaves manifests in extensions/.
