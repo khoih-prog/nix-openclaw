@@ -154,11 +154,6 @@ if [ -z "${tsc_cli:-}" ] || [ ! -f "$tsc_cli" ]; then
   echo "TypeScript CLI not found under ./node_modules" >&2
   exit 1
 fi
-tsgo_script="scripts/run-tsgo.mjs"
-if [ ! -f "$tsgo_script" ]; then
-  echo "OpenClaw tsgo wrapper not found: $tsgo_script" >&2
-  exit 1
-fi
 log_step "build: tsdown" env \
   NODE_OPTIONS="$tsdown_node_options" \
   OPENCLAW_RUN_NODE_SKIP_DTS_BUILD=1 \
@@ -167,10 +162,7 @@ log_step "build: runtime-postbuild" node scripts/runtime-postbuild.mjs
 if [ -f "scripts/stage-bundled-plugin-runtime.mjs" ]; then
   log_step "build: stage bundled plugin runtime" node scripts/stage-bundled-plugin-runtime.mjs
 fi
-case "$(uname -s)" in
-  Darwin) log_step "build: plugin-sdk dts" node "$tsgo_script" -p tsconfig.plugin-sdk.dts.json --declaration true ;;
-  *) log_step "build: plugin-sdk dts" node "$tsc_cli" -p tsconfig.plugin-sdk.dts.json ;;
-esac
+log_step "build: plugin-sdk dts" node "$tsc_cli" -p tsconfig.plugin-sdk.dts.json
 log_step "build: write-plugin-sdk-entry-dts" node --import tsx scripts/write-plugin-sdk-entry-dts.ts
 if [ -f "scripts/copy-plugin-sdk-root-alias.mjs" ]; then
   log_step "build: copy-plugin-sdk-root-alias" node scripts/copy-plugin-sdk-root-alias.mjs
