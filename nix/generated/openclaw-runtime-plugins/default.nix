@@ -9,6 +9,7 @@
   diffs = import ./diffs.nix;
   diffs-language-pack = import ./diffsLanguagePack.nix;
   discord = import ./discord.nix;
+  feishu = import ./feishu.nix;
   google-meet = import ./googleMeet.nix;
   googlechat = import ./googlechat.nix;
   line = import ./line.nix;
@@ -21,7 +22,6 @@
   qqbot = import ./qqbot.nix;
   slack = import ./slack.nix;
   synology-chat = import ./synologyChat.nix;
-  tlon = import ./tlon.nix;
   tokenjuice = import ./tokenjuice.nix;
   twitch = import ./twitch.nix;
   voice-call = import ./voiceCall.nix;

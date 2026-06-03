@@ -13,15 +13,15 @@
   minHostVersion = ">=2026.4.10";
   expectedIntegrity = "";
   packageName = "@openclaw/msteams";
-  version = "2026.5.28";
-  tarballUrl = "https://registry.npmjs.org/@openclaw/msteams/-/msteams-2026.5.28.tgz";
-  npmIntegrity = "sha512-ypH6/hyCP38Qhu8f2mHHfISBSBw9fPNYNLfw8eEYi7OfMKtBpUq5T+X4UhoF3iNtfeaNIzIby0csbS3eO6aYjg==";
-  npmShasum = "d2b76407d6e38d13a567ebf49fd226fe2afedbd6";
-  nixHash = "sha256-7bJhyJExHf1buzLzC2tSRhl2uXno2jnLyTtmm0bx2j8=";
+  version = "2026.6.1";
+  tarballUrl = "https://registry.npmjs.org/@openclaw/msteams/-/msteams-2026.6.1.tgz";
+  npmIntegrity = "sha512-Y3FisAzCHRj/VGLojUSyOdffb/U2Dt3VIyFz5i46OiIrgffYXT42NPSItYzoDTcrSc22nqT/uIargyblVHZnAw==";
+  npmShasum = "1b7e4de3dc25008b090d809b9d32321744e9b69f";
+  nixHash = "sha256-PhVxKLv+bpkOYmPNQV1WltOJgWdgbbvUhn1gJgGH9Kw=";
   dependencyMode = "bundled";
   manifestId = "msteams";
-  openclawCompat = ">=2026.5.28";
-  peerOpenClaw = ">=2026.5.28";
+  openclawCompat = ">=2026.6.1";
+  peerOpenClaw = ">=2026.6.1";
   runtimeExtensions = [
     "./dist/index.js"
   ];
@@ -35,7 +35,7 @@
     "@microsoft/teams.api" = "2.0.12";
     "@microsoft/teams.apps" = "2.0.12";
     express = "5.2.1";
-    typebox = "1.1.38";
+    typebox = "1.1.39";
   };
   optionalDependencies = { };
   bundleDependencies = [

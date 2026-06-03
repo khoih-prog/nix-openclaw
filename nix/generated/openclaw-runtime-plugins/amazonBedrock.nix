@@ -13,15 +13,15 @@
   minHostVersion = ">=2026.5.12-beta.1";
   expectedIntegrity = "";
   packageName = "@openclaw/amazon-bedrock-provider";
-  version = "2026.5.28";
-  tarballUrl = "https://registry.npmjs.org/@openclaw/amazon-bedrock-provider/-/amazon-bedrock-provider-2026.5.28.tgz";
-  npmIntegrity = "sha512-bbuWGMwAzBQ7upJrcJIXYEOdAvafUHXjsqSeLrzUnXvRzSJYZc9XlSxs7L9ZrtOHlcFfLCJeYHW4e9QbtRzBhQ==";
-  npmShasum = "af3233b96a2cdeff84794fe6a51c4e53680e3a23";
-  nixHash = "sha256-vhXkpP6lYYtokA+2haiC/w7hykKANdXAtcGaBJ9XCxI=";
+  version = "2026.6.1";
+  tarballUrl = "https://registry.npmjs.org/@openclaw/amazon-bedrock-provider/-/amazon-bedrock-provider-2026.6.1.tgz";
+  npmIntegrity = "sha512-1x41Fzd5/WkNCxihVTOWsrUHgQcvrZ1C5RfkdlztOFATqBfK8aKmlJEZuyauaVqar3nuKIyvP9aDTgoBrgE1LA==";
+  npmShasum = "dd6abd8734fad3ad822a0c96b6191171322536aa";
+  nixHash = "sha256-Zak/owhpW7EAWay5c3nt8F2RSTAaS8AUO+sRrscBjoE=";
   dependencyMode = "bundled";
   manifestId = "amazon-bedrock";
-  openclawCompat = ">=2026.5.28";
-  peerOpenClaw = ">=2026.5.28";
+  openclawCompat = ">=2026.6.1";
+  peerOpenClaw = ">=2026.6.1";
   runtimeExtensions = [
     "./dist/index.js"
   ];
@@ -33,11 +33,11 @@
     ];
   };
   dependencies = {
-    "@aws-sdk/client-bedrock" = "3.1053.0";
-    "@aws-sdk/client-bedrock-runtime" = "3.1053.0";
-    "@aws-sdk/credential-provider-node" = "3.972.44";
-    "@smithy/node-http-handler" = "4.7.4";
-    "@smithy/shared-ini-file-loader" = "4.5.4";
+    "@aws-sdk/client-bedrock" = "3.1056.0";
+    "@aws-sdk/client-bedrock-runtime" = "3.1056.0";
+    "@aws-sdk/credential-provider-node" = "3.972.46";
+    "@smithy/node-http-handler" = "4.7.5";
+    "@smithy/shared-ini-file-loader" = "4.5.5";
     "@smithy/types" = "4.14.2";
   };
   optionalDependencies = { };
@@ -66,7 +66,6 @@
     "node_modules/@aws-sdk/credential-provider-node"
     "node_modules/@aws-sdk/credential-provider-process"
     "node_modules/@aws-sdk/credential-provider-sso"
-    "node_modules/@aws-sdk/credential-provider-sso/node_modules/@aws-sdk/token-providers"
     "node_modules/@aws-sdk/credential-provider-web-identity"
     "node_modules/@aws-sdk/eventstream-handler-node"
     "node_modules/@aws-sdk/middleware-eventstream"

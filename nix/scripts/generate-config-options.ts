@@ -130,6 +130,18 @@ const stripNullable = (schemaObj: JsonSchema): { schema: JsonSchema; nullable: b
   return { schema, nullable: false };
 };
 
+const flattenUnionEntries = (entries: JsonSchema[]): JsonSchema[] =>
+  entries.flatMap((entry) => {
+    const schema = deref(entry, new Set());
+    if (schema.anyOf && Array.isArray(schema.anyOf)) {
+      return flattenUnionEntries(schema.anyOf as JsonSchema[]);
+    }
+    if (schema.oneOf && Array.isArray(schema.oneOf)) {
+      return flattenUnionEntries(schema.oneOf as JsonSchema[]);
+    }
+    return [schema];
+  });
+
 const typeForSchema = (schemaObj: JsonSchema, indent: string, pathSegments: string[] = []): string => {
   const { schema, nullable } = stripNullable(schemaObj);
   const typeExpr = baseTypeForSchema(schema, indent, pathSegments);
@@ -159,14 +171,14 @@ const baseTypeForSchema = (schemaObj: JsonSchema, indent: string, pathSegments: 
 
   if (schema.anyOf && Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
     const entries = schema.anyOf as JsonSchema[];
-    const objectUnion = objectUnionTypeForSchemas(entries, indent);
+    const objectUnion = objectUnionTypeForSchemas(flattenUnionEntries(entries), indent);
     if (objectUnion) return objectUnion;
     return oneOfTypeForSchemas(entries, indent, pathSegments);
   }
 
   if (schema.oneOf && Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
     const entries = schema.oneOf as JsonSchema[];
-    const objectUnion = objectUnionTypeForSchemas(entries, indent);
+    const objectUnion = objectUnionTypeForSchemas(flattenUnionEntries(entries), indent);
     if (objectUnion) return objectUnion;
     return oneOfTypeForSchemas(entries, indent, pathSegments);
   }
@@ -227,7 +239,6 @@ const objectUnionTypeForSchemas = (entries: JsonSchema[], indent: string): strin
   if (sourceValues.some((value) => value === null)) return null;
 
   const uniqueSourceValues = Array.from(new Set(sourceValues as string[]));
-  if (uniqueSourceValues.length !== sourceValues.length) return null;
 
   const merged: Record<string, JsonSchema[]> = {};
   for (const props of propsByVariant as Record<string, JsonSchema>[]) {

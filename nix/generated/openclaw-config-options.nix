@@ -1,4 +1,4 @@
-# Generated from upstream OpenClaw schema at rev e93216080aa1f425d3ab127014603eba8e365b2d. DO NOT EDIT.
+# Generated from upstream OpenClaw schema at rev 2e08f0f4221f522b60423ed6ffd83427942b28de. DO NOT EDIT.
 # Generator: nix/scripts/generate-config-options.ts
 { lib }:
 let
@@ -4774,6 +4774,10 @@ in
         type = t.nullOr (t.bool);
         default = null;
       };
+      serviceName = lib.mkOption {
+        type = t.nullOr (t.str);
+        default = null;
+      };
     }; });
       default = null;
     };
@@ -4817,15 +4821,6 @@ in
     };
     trustedProxies = lib.mkOption {
       type = t.nullOr (t.listOf (t.str));
-      default = null;
-    };
-    webchat = lib.mkOption {
-      type = t.nullOr (t.submodule { options = {
-      chatHistoryMaxChars = lib.mkOption {
-        type = t.nullOr (t.int);
-        default = null;
-      };
-    }; });
       default = null;
     };
   }; });
@@ -5263,6 +5258,26 @@ in
         type = t.nullOr (t.listOf (t.str));
         default = null;
       };
+      auth = lib.mkOption {
+        type = t.nullOr (t.enum [ "oauth" ]);
+        default = null;
+      };
+      clientCert = lib.mkOption {
+        type = t.nullOr (t.str);
+        default = null;
+      };
+      clientKey = lib.mkOption {
+        type = t.nullOr (t.str);
+        default = null;
+      };
+      client_cert = lib.mkOption {
+        type = t.nullOr (t.str);
+        default = null;
+      };
+      client_key = lib.mkOption {
+        type = t.nullOr (t.str);
+        default = null;
+      };
       codex = lib.mkOption {
         type = t.nullOr (t.submodule { options = {
         agents = lib.mkOption {
@@ -5284,8 +5299,24 @@ in
         type = t.nullOr (t.str);
         default = null;
       };
+      connectTimeout = lib.mkOption {
+        type = t.nullOr (t.number);
+        default = null;
+      };
+      connect_timeout = lib.mkOption {
+        type = t.nullOr (t.number);
+        default = null;
+      };
+      connectionTimeoutMs = lib.mkOption {
+        type = t.nullOr (t.number);
+        default = null;
+      };
       cwd = lib.mkOption {
         type = t.nullOr (t.str);
+        default = null;
+      };
+      enabled = lib.mkOption {
+        type = t.nullOr (t.bool);
         default = null;
       };
       env = lib.mkOption {
@@ -5294,6 +5325,60 @@ in
       };
       headers = lib.mkOption {
         type = t.nullOr (t.attrsOf (t.oneOf [ (t.str) (t.number) (t.bool) ]));
+        default = null;
+      };
+      oauth = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        clientMetadataUrl = lib.mkOption {
+          type = t.nullOr (t.str);
+          default = null;
+        };
+        redirectUrl = lib.mkOption {
+          type = t.nullOr (t.str);
+          default = null;
+        };
+        scope = lib.mkOption {
+          type = t.nullOr (t.str);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
+      requestTimeoutMs = lib.mkOption {
+        type = t.nullOr (t.number);
+        default = null;
+      };
+      sslVerify = lib.mkOption {
+        type = t.nullOr (t.bool);
+        default = null;
+      };
+      ssl_verify = lib.mkOption {
+        type = t.nullOr (t.bool);
+        default = null;
+      };
+      supportsParallelToolCalls = lib.mkOption {
+        type = t.nullOr (t.bool);
+        default = null;
+      };
+      supports_parallel_tool_calls = lib.mkOption {
+        type = t.nullOr (t.bool);
+        default = null;
+      };
+      timeout = lib.mkOption {
+        type = t.nullOr (t.number);
+        default = null;
+      };
+      toolFilter = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        exclude = lib.mkOption {
+          type = t.nullOr (t.listOf (t.str));
+          default = null;
+        };
+        include = lib.mkOption {
+          type = t.nullOr (t.listOf (t.str));
+          default = null;
+        };
+      }; });
         default = null;
       };
       transport = lib.mkOption {
@@ -5966,7 +6051,7 @@ in
         default = null;
       };
       api = lib.mkOption {
-        type = t.nullOr (t.enum [ "openai-completions" "openai-responses" "openai-codex-responses" "anthropic-messages" "google-generative-ai" "google-vertex" "github-copilot" "bedrock-converse-stream" "ollama" "azure-openai-responses" ]);
+        type = t.nullOr (t.enum [ "openai-completions" "openai-responses" "openai-chatgpt-responses" "anthropic-messages" "google-generative-ai" "google-vertex" "github-copilot" "bedrock-converse-stream" "ollama" "azure-openai-responses" ]);
         default = null;
       };
       apiKey = lib.mkOption {
@@ -6069,7 +6154,7 @@ in
           default = null;
         };
         api = lib.mkOption {
-          type = t.nullOr (t.enum [ "openai-completions" "openai-responses" "openai-codex-responses" "anthropic-messages" "google-generative-ai" "google-vertex" "github-copilot" "bedrock-converse-stream" "ollama" "azure-openai-responses" ]);
+          type = t.nullOr (t.enum [ "openai-completions" "openai-responses" "openai-chatgpt-responses" "anthropic-messages" "google-generative-ai" "google-vertex" "github-copilot" "bedrock-converse-stream" "ollama" "azure-openai-responses" ]);
           default = null;
         };
         baseUrl = lib.mkOption {
@@ -6828,6 +6913,17 @@ in
         type = t.nullOr (t.str);
         default = null;
       };
+      pluginIntegration = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        integrationId = lib.mkOption {
+          type = t.str;
+        };
+        pluginId = lib.mkOption {
+          type = t.str;
+        };
+      }; });
+        default = null;
+      };
       timeoutMs = lib.mkOption {
         type = t.nullOr (t.int);
         default = null;
@@ -7260,6 +7356,32 @@ in
         default = null;
       };
       watchDebounceMs = lib.mkOption {
+        type = t.nullOr (t.int);
+        default = null;
+      };
+    }; });
+      default = null;
+    };
+    workshop = lib.mkOption {
+      type = t.nullOr (t.submodule { options = {
+      approvalPolicy = lib.mkOption {
+        type = t.nullOr (t.oneOf [ (t.enum [ "pending" ]) (t.enum [ "auto" ]) ]);
+        default = null;
+      };
+      autonomous = lib.mkOption {
+        type = t.nullOr (t.submodule { options = {
+        enabled = lib.mkOption {
+          type = t.nullOr (t.bool);
+          default = null;
+        };
+      }; });
+        default = null;
+      };
+      maxPending = lib.mkOption {
+        type = t.nullOr (t.int);
+        default = null;
+      };
+      maxSkillBytes = lib.mkOption {
         type = t.nullOr (t.int);
         default = null;
       };

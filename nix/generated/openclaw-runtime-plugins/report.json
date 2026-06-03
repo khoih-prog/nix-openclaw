@@ -1,8 +1,8 @@
 {
-  "openclawVersion": "2026.5.28",
-  "openclawReleaseTag": "v2026.5.28",
-  "openclawRev": "e93216080aa1f425d3ab127014603eba8e365b2d",
-  "openclawHash": "sha256-94m97uMp89ywKgs6HQyx5h/U1gr5py8md3F3HNt0iVI=",
+  "openclawVersion": "2026.6.1",
+  "openclawReleaseTag": "v2026.6.1",
+  "openclawRev": "2e08f0f4221f522b60423ed6ffd83427942b28de",
+  "openclawHash": "sha256-FjxiI7YHkt6fTzJD7G5A3/wsbcWgpO44IHMOwymDxpg=",
   "catalogFiles": [
     "official-external-channel-catalog.json",
     "official-external-plugin-catalog.json",
@@ -20,10 +20,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/amazon-bedrock-provider",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "amazon-bedrock-mantle",
@@ -36,10 +36,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/amazon-bedrock-mantle-provider",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "anthropic-vertex",
@@ -52,10 +52,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/anthropic-vertex-provider",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "brave",
@@ -68,10 +68,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/brave-plugin",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "none",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "diagnostics-otel",
@@ -84,10 +84,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/diagnostics-otel",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "diagnostics-prometheus",
@@ -100,10 +100,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/diagnostics-prometheus",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "none",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "diffs",
@@ -116,10 +116,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/diffs",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "diffs-language-pack",
@@ -132,10 +132,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/diffs-language-pack",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "none",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "discord",
@@ -148,10 +148,26 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/discord",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
+    },
+    {
+      "id": "feishu",
+      "status": "supported",
+      "label": "Feishu",
+      "kind": "channel",
+      "source": "official",
+      "catalogFile": "official-external-channel-catalog.json",
+      "catalogEntryName": "@openclaw/feishu",
+      "catalogDefaultChoice": "npm",
+      "selectedSource": "npm",
+      "packageName": "@openclaw/feishu",
+      "version": "2026.6.1",
+      "dependencyMode": "bundled",
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "google-meet",
@@ -164,10 +180,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/google-meet",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "googlechat",
@@ -180,10 +196,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/googlechat",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "line",
@@ -196,10 +212,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/line",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "lobster",
@@ -212,10 +228,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/lobster",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "msteams",
@@ -228,10 +244,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/msteams",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "nextcloud-talk",
@@ -244,10 +260,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/nextcloud-talk",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "nostr",
@@ -260,10 +276,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/nostr",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "openshell",
@@ -276,10 +292,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/openshell-sandbox",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "pixverse",
@@ -292,10 +308,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/pixverse-provider",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "none",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "qqbot",
@@ -308,10 +324,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/qqbot",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "slack",
@@ -324,10 +340,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/slack",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "synology-chat",
@@ -340,26 +356,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/synology-chat",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
-    },
-    {
-      "id": "tlon",
-      "status": "supported",
-      "label": "Tlon",
-      "kind": "channel",
-      "source": "official",
-      "catalogFile": "official-external-channel-catalog.json",
-      "catalogEntryName": "@openclaw/tlon",
-      "catalogDefaultChoice": "npm",
-      "selectedSource": "npm",
-      "packageName": "@openclaw/tlon",
-      "version": "2026.5.28",
-      "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "tokenjuice",
@@ -372,10 +372,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/tokenjuice",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "twitch",
@@ -388,10 +388,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/twitch",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "voice-call",
@@ -404,10 +404,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/voice-call",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "zalo",
@@ -420,10 +420,10 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/zalo",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     },
     {
       "id": "zalouser",
@@ -436,28 +436,13 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "packageName": "@openclaw/zalouser",
-      "version": "2026.5.28",
+      "version": "2026.6.1",
       "dependencyMode": "bundled",
-      "openclawCompat": ">=2026.5.28",
-      "peerOpenClaw": ">=2026.5.28"
+      "openclawCompat": ">=2026.6.1",
+      "peerOpenClaw": ">=2026.6.1"
     }
   ],
   "skipped": [
-    {
-      "id": "feishu",
-      "label": "Feishu",
-      "kind": "channel",
-      "source": "official",
-      "catalogFile": "official-external-channel-catalog.json",
-      "catalogEntryName": "@openclaw/feishu",
-      "catalogDefaultChoice": "npm",
-      "selectedSource": "npm",
-      "npmSpec": "@openclaw/feishu",
-      "minHostVersion": ">=2026.5.29",
-      "status": "skipped",
-      "reason": "host-compatibility-mismatch",
-      "detail": "catalog minHostVersion >=2026.5.29 does not include OpenClaw 2026.5.28"
-    },
     {
       "id": "matrix",
       "label": "Matrix",
@@ -504,6 +489,21 @@
       "status": "skipped",
       "reason": "external-catalog-source-unsupported",
       "detail": "non-OpenClaw catalog packages need an explicit trust and dependency policy"
+    },
+    {
+      "id": "tlon",
+      "label": "Tlon",
+      "kind": "channel",
+      "source": "official",
+      "catalogFile": "official-external-channel-catalog.json",
+      "catalogEntryName": "@openclaw/tlon",
+      "catalogDefaultChoice": "npm",
+      "selectedSource": "npm",
+      "npmSpec": "@openclaw/tlon",
+      "minHostVersion": ">=2026.4.10",
+      "status": "skipped",
+      "reason": "dependency-materialization-required",
+      "detail": "package has runtime dependencies but no bundled node_modules"
     },
     {
       "id": "wecom-openclaw-plugin",
@@ -577,7 +577,7 @@
       "catalogDefaultChoice": "npm",
       "selectedSource": "npm",
       "npmSpec": "@openclaw/memory-lancedb",
-      "minHostVersion": ">=2026.4.10",
+      "minHostVersion": ">=2026.5.31",
       "status": "skipped",
       "reason": "dependency-materialization-required",
       "detail": "package has runtime dependencies but no bundled node_modules"

@@ -13,15 +13,15 @@
   minHostVersion = ">=2026.5.26";
   expectedIntegrity = "";
   packageName = "@openclaw/pixverse-provider";
-  version = "2026.5.28";
-  tarballUrl = "https://registry.npmjs.org/@openclaw/pixverse-provider/-/pixverse-provider-2026.5.28.tgz";
-  npmIntegrity = "sha512-eCDFOiO0XTh9d0Jr8LH6WezoIZc5T6R60hvFThWj84JvLTGj8rEr7gV110viIIpWcobhj86w9gmgNNkkjnQgSg==";
-  npmShasum = "31386a6d8b460ba5d3b22bf0b732ea5adda8365f";
-  nixHash = "sha256-+J1yynwalexjLcSvGn1NtDoIz6L5jQan/PZnGsfsd+M=";
+  version = "2026.6.1";
+  tarballUrl = "https://registry.npmjs.org/@openclaw/pixverse-provider/-/pixverse-provider-2026.6.1.tgz";
+  npmIntegrity = "sha512-RlWMDejJumMzwZRUp5uJxSiwwifEJA3BKSQIGxfxMoaIsH41zKZPO0lGhEZXUJ7TEkS0pDSISnja1dYHekst9Q==";
+  npmShasum = "a2d6c628aa296102d353fec108b80258d5387f2e";
+  nixHash = "sha256-Tf//m73OTpd8L+elCmtfpSfTGqxuE+X6lauw+GIvYuY=";
   dependencyMode = "none";
   manifestId = "pixverse";
-  openclawCompat = ">=2026.5.28";
-  peerOpenClaw = ">=2026.5.28";
+  openclawCompat = ">=2026.6.1";
+  peerOpenClaw = ">=2026.6.1";
   runtimeExtensions = [
     "./dist/index.js"
   ];
