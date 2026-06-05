@@ -73,7 +73,7 @@ You talk to Telegram, your machine does things.
 
 OpenClaw runtime plugins are the same plugins described in the upstream
 OpenClaw docs. They add Gateway features such as Slack, Discord, WhatsApp,
-GitHub Copilot, and Codex.
+Google Chat, Microsoft Teams, and GitHub Copilot.
 
 With upstream OpenClaw, you install plugins with the CLI:
 
@@ -114,8 +114,9 @@ Common ids:
 slack
 discord
 whatsapp
+googlechat
+msteams
 copilot
-codex
 ```
 
 If you use an unsupported id, Home Manager fails before switching and prints the
@@ -195,13 +196,13 @@ programs.openclaw = {
 ```
 
 The difference is where the upstream settings go: channel plugins configure
-`channels.<name>`, while runtime/provider plugins such as GitHub Copilot and
-Codex configure agent runtime or model settings.
+`channels.<name>`, while runtime/provider plugins such as GitHub Copilot
+configure agent runtime or model settings.
 
 ### What Goes In `runtimePlugins`
 
 Use `runtimePlugins` for supported OpenClaw runtime plugin ids such as
-`slack`, `discord`, `whatsapp`, `copilot`, or `codex`.
+`slack`, `discord`, `whatsapp`, `googlechat`, `msteams`, or `copilot`.
 
 Do not put npm, ClawHub, git, local path, archive, or marketplace install
 strings in `runtimePlugins`:
@@ -217,7 +218,7 @@ programs.openclaw.runtimePlugins = [ "clawhub:@openclaw/whatsapp" ];
 Use the id instead:
 
 ```nix
-programs.openclaw.runtimePlugins = [ "slack" "whatsapp" "copilot" ];
+programs.openclaw.runtimePlugins = [ "slack" "whatsapp" "msteams" "copilot" ];
 ```
 
 ### What Is Supported
