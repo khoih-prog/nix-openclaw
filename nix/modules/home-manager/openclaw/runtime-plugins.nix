@@ -58,7 +58,7 @@ let
             programs.openclaw.instances.${name}.runtimePlugins contains unsupported ids: ${lib.concatStringsSep ", " unknownIds}.
             Supported ids in this build: ${lib.concatStringsSep ", " supportedIds}
             Source/install specs such as npm:... or clawhub:... are not accepted here.
-            Maintainers can inspect skipped-catalog diagnostics in ${supportReportPath}.
+            Maintainers can inspect unsupported-plugin diagnostics in ${supportReportPath}.
           '';
         }
         {

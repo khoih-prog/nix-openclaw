@@ -22,7 +22,7 @@ To agents: if you’re **not listed as a maintainer** (see [AGENTS.md#maintainer
 
 - [Contributions (read this first)](#contributions-read-this-first)
 - [What You Get](#what-you-get)
-- [OpenClaw Plugins vs nix-openclaw Plugins](#openclaw-plugins-vs-nix-openclaw-plugins)
+- [OpenClaw Runtime Plugins](#openclaw-runtime-plugins)
 - [Requirements](#requirements)
 - [Why Nix?](#why-nix)
 - [Quick Start](#quick-start)
@@ -63,78 +63,81 @@ You talk to Telegram, your machine does things.
 
 **One flake, everything works.** Gateway everywhere; runtime dependencies bundled; macOS app on macOS.
 
-**nix-openclaw plugins are self-contained.** Each plugin declares its CLI tools in Nix. You enable it, the build and wiring happens automatically.
+**Tool plugins are self-contained.** Each nix-openclaw tool plugin declares its CLI tools in Nix. You enable it, the build and wiring happens automatically.
 
 **Bulletproof.** Nix locks every dependency. No version drift, no surprises. `home-manager switch` to update, `home-manager generations` to rollback instantly.
 
 ---
 
-## OpenClaw Plugins vs nix-openclaw Plugins
+## OpenClaw Runtime Plugins
 
-Most people asking about plugins mean **OpenClaw runtime plugins**: JavaScript
-plugin roots loaded by the OpenClaw gateway. Slack, Discord, Matrix, WhatsApp,
-Weixin, Codex, ACPX, and Memory LanceDB are OpenClaw runtime plugins.
+OpenClaw runtime plugins are the same plugins described in the upstream
+OpenClaw docs. They add Gateway features such as Slack, Discord, WhatsApp,
+GitHub Copilot, and Codex.
 
-In regular OpenClaw you install those with commands such as
-`openclaw plugins install @openclaw/slack` or
-`openclaw plugins install clawhub:@openclaw/whatsapp`. In nix-openclaw, put the
-catalog plugin id in Nix instead. The id must be present in the generated lock
-for the OpenClaw release you are using:
-
-```nix
-programs.openclaw = {
-  runtimePlugins = [ "slack" ];
-
-  # Plugin settings keep the same shape as upstream OpenClaw config.
-  config.channels.slack.enabled = true;
-};
-```
-
-Then rebuild your Nix/Home Manager config. Do not run
-`openclaw plugins install`; nix-openclaw writes immutable plugin load paths into
-OpenClaw config.
-
-**nix-openclaw plugins** are different. They are Nix flake bundles of CLI tools
-and skills, such as `discrawl`, `summarize`, and `peekaboo`. Use
-`bundledPlugins` or `customPlugins` for those. Do not use `customPlugins` to
-install OpenClaw runtime plugins from npm or ClawHub.
-
-### Runtime Plugin Examples
-
-Use the upstream plugin id, not the npm or ClawHub source string.
-
-To inspect the generated ids in this repo:
-
-```bash
-jq -r '.supported[].id' nix/generated/openclaw-runtime-plugins/report.json
-```
-
-#### Bundled In The Gateway
-
-Some runtime plugins already ship inside the OpenClaw package.
-
-Regular OpenClaw:
-
-```bash
-openclaw plugins enable workboard
-```
-
-nix-openclaw:
-
-```nix
-programs.openclaw.config.plugins.entries.workboard.enabled = true;
-```
-
-No `runtimePlugins` entry is needed because there is no external plugin root to
-package.
-
-#### Official npm Catalog Plugin With Bundled Dependencies
-
-Regular OpenClaw:
+With upstream OpenClaw, you install plugins with the CLI:
 
 ```bash
 openclaw plugins install @openclaw/slack
-openclaw channels add --channel slack
+```
+
+With nix-openclaw, that install step becomes Nix config:
+
+```nix
+programs.openclaw.runtimePlugins = [ "slack" ];
+```
+
+Then use the upstream plugin docs for the plugin's own settings, but translate
+those settings into `programs.openclaw.config`.
+
+Do not run upstream plugin or config mutator commands such as
+`openclaw plugins install`, `plugins update`, `plugins enable`,
+`openclaw config set`, or `openclaw config patch` on a Nix-managed install.
+OpenClaw runs in Nix mode, so those commands print an error instead of changing
+plugin files or `openclaw.json`. Change your Nix config and rebuild instead.
+
+Useful upstream docs:
+
+- [OpenClaw plugin commands](https://github.com/openclaw/openclaw/blob/main/docs/cli/plugins.md)
+- [Slack setup](https://github.com/openclaw/openclaw/blob/main/docs/channels/slack.md)
+- [Discord setup](https://github.com/openclaw/openclaw/blob/main/docs/channels/discord.md)
+- [WhatsApp setup](https://github.com/openclaw/openclaw/blob/main/docs/channels/whatsapp.md)
+- [GitHub Copilot runtime](https://github.com/openclaw/openclaw/blob/main/docs/plugins/copilot.md)
+
+### Find The Plugin Id
+
+`runtimePlugins` uses OpenClaw plugin ids, not npm package names:
+
+Common ids:
+
+```text
+slack
+discord
+whatsapp
+copilot
+codex
+```
+
+If you use an unsupported id, Home Manager fails before switching and prints the
+supported ids for this build. From a nix-openclaw checkout, this prints the
+same list:
+
+```bash
+jq -r '.supported[] | "\(.id)\t\(.label)"' nix/generated/openclaw-runtime-plugins/report.json
+```
+
+### Example: Slack
+
+Slack, Discord, and WhatsApp are channel plugins. They add places where messages
+can enter and leave OpenClaw. That means there are two parts:
+
+1. load the Slack plugin;
+2. configure the Slack channel.
+
+Upstream OpenClaw:
+
+```bash
+openclaw plugins install @openclaw/slack
 ```
 
 nix-openclaw:
@@ -143,129 +146,120 @@ nix-openclaw:
 programs.openclaw = {
   runtimePlugins = [ "slack" ];
 
+  environment = {
+    SLACK_APP_TOKEN = "/run/agenix/slack-app-token";
+    SLACK_BOT_TOKEN = "/run/agenix/slack-bot-token";
+  };
+
   config.channels.slack = {
     enabled = true;
-    # Add the normal upstream Slack channel settings here.
+    mode = "socket";
+    appToken = { source = "env"; provider = "default"; id = "SLACK_APP_TOKEN"; };
+    botToken = { source = "env"; provider = "default"; id = "SLACK_BOT_TOKEN"; };
   };
 };
 ```
 
-Slack and Discord are npm artifacts whose runtime dependencies are bundled in
-`node_modules`, so nix-openclaw packages them without an `npmDepsHash`. The
-current generated lock supports both.
+For Discord or WhatsApp, use the same pattern: put the plugin id in
+`runtimePlugins`, then put the upstream channel settings under
+`programs.openclaw.config.channels.<channel>`.
 
-#### Catalog Plugin With No npm Dependencies
+### Example: GitHub Copilot
 
-Regular OpenClaw:
+GitHub Copilot is not a channel. It does not add a new chat surface like Slack
+or WhatsApp. It changes how an agent turn runs: OpenClaw selects a
+`github-copilot/...` model and routes that agent turn through the Copilot
+runtime.
 
-```bash
-openclaw plugins install @openclaw/brave-plugin
-```
-
-nix-openclaw:
-
-```nix
-programs.openclaw.runtimePlugins = [ "brave" ];
-```
-
-Brave has no runtime npm dependency graph to materialize, so the Nix build only
-has to fetch and validate the fixed package root.
-
-#### Catalog Plugin With npm Dependencies
-
-Regular OpenClaw:
+Upstream OpenClaw:
 
 ```bash
-openclaw plugins install npm:@openclaw/memory-lancedb
-```
-
-nix-openclaw:
-
-```nix
-programs.openclaw.runtimePlugins = [ "memory-lancedb" ];
-```
-
-Memory LanceDB ships an `npm-shrinkwrap.json`, so nix-openclaw can prefetch and
-replay its dependency graph during the Nix build. Users still only select the
-plugin id.
-
-#### ClawHub Catalog Plugin
-
-Regular OpenClaw:
-
-```bash
-openclaw plugins install clawhub:@openclaw/whatsapp
-openclaw channels add --channel whatsapp
+openclaw plugins install @openclaw/copilot
 ```
 
 nix-openclaw:
 
 ```nix
 programs.openclaw = {
-  runtimePlugins = [ "whatsapp" ];
+  runtimePlugins = [ "copilot" ];
 
-  config.channels.whatsapp = {
-    enabled = true;
-    # Add the normal upstream WhatsApp channel settings here.
+  config.agents.defaults = {
+    model = "github-copilot/gpt-5.5";
+    models = {
+      "github-copilot/gpt-5.5" = {
+        agentRuntime.id = "copilot";
+      };
+    };
   };
 };
 ```
 
-The current generated lock supports WhatsApp and Matrix through ClawHub. The
-lock generator resolves ClawHub to a fixed npm-pack tarball first, then builds
-that tarball like any other packageable runtime plugin root.
+The difference is where the upstream settings go: channel plugins configure
+`channels.<name>`, while runtime/provider plugins such as GitHub Copilot and
+Codex configure agent runtime or model settings.
 
-#### Codex And ACPX
+### What Goes In `runtimePlugins`
 
-Codex and ACPX can be confusing because OpenClaw releases may also contain
-bundled gateway-side support for them. nix-openclaw also packages the external
-catalog runtime plugin roots when they are present in the generated lock:
+Use `runtimePlugins` for supported OpenClaw runtime plugin ids such as
+`slack`, `discord`, `whatsapp`, `copilot`, or `codex`.
 
-```nix
-programs.openclaw.runtimePlugins = [
-  "codex"
-  "acpx"
-];
-```
-
-If a future OpenClaw release already includes the behavior you need inside the
-gateway, you may not need to select the external catalog roots. If you do select
-them, nix-openclaw treats them like the other generated runtime plugin ids.
-
-#### A Catalog Plugin That Does Not Package Yet
-
-Regular OpenClaw can install packages whose dependencies are resolved by npm at
-install time:
-
-```bash
-openclaw plugins install @tencent-weixin/openclaw-weixin
-```
-
-nix-openclaw cannot turn that mutable install into a reproducible build unless
-the published artifact contains everything needed to build offline. The current
-Weixin, Yuanbao, and WeCom catalog packages declare runtime dependencies but do
-not publish `npm-shrinkwrap.json` or bundled `node_modules`, so they need an
-upstream publish fix first.
-
-When upstream publishes one of those packages with shrinkwrap or bundled
-runtime dependencies, the user config should become the same simple shape:
+Do not put npm, ClawHub, git, local path, archive, or marketplace install
+strings in `runtimePlugins`:
 
 ```nix
-programs.openclaw.runtimePlugins = [ "openclaw-weixin" ];
+# Wrong: fails evaluation.
+programs.openclaw.runtimePlugins = [ "npm:@openclaw/slack" ];
+
+# Wrong: fails evaluation.
+programs.openclaw.runtimePlugins = [ "clawhub:@openclaw/whatsapp" ];
 ```
 
-No new Nix user API should be needed.
+Use the id instead:
 
-#### Arbitrary Third-Party Sources
+```nix
+programs.openclaw.runtimePlugins = [ "slack" "whatsapp" "copilot" ];
+```
 
-Regular OpenClaw also accepts arbitrary npm, git, local, archive, and
-marketplace install specs. nix-openclaw does not accept those raw strings in
-`runtimePlugins` because they would make Home Manager activation behave like a
-package-manager install.
+### What Is Supported
 
-A future declarative source API would need fixed source hashes and dependency
-hashes, like other Nix package definitions. The current supported path is the
-generated OpenClaw catalog id list.
+nix-openclaw supports the ids printed by this build. Some supported ids come
+from npm, and some come from ClawHub. You do not choose that source in your Nix
+config; nix-openclaw already knows how to build each supported id.
+
+This is how common upstream install commands map to Nix:
+
+| Upstream OpenClaw | nix-openclaw |
+| --- | --- |
+| `openclaw plugins install @openclaw/slack` | `runtimePlugins = [ "slack" ];` |
+| `openclaw plugins install clawhub:@openclaw/whatsapp` | `runtimePlugins = [ "whatsapp" ];` |
+| `openclaw plugins install @openclaw/copilot` | `runtimePlugins = [ "copilot" ];` |
+
+Direct source specs are not user config today:
+
+| Upstream OpenClaw | nix-openclaw today |
+| --- | --- |
+| `openclaw plugins install npm:@scope/plugin` | no direct `npm:` config |
+| `openclaw plugins install git:github.com/owner/repo@ref` | no direct `git:` config |
+| `openclaw plugins install --link ./my-plugin` | no direct local-path runtime plugin config |
+| `openclaw plugins install npm-pack:./plugin.tgz` | no direct archive config |
+| `openclaw plugins install plugin --marketplace owner/repo` | no direct marketplace config |
+
+Those can be packageable, but nix-openclaw still needs fixed Nix inputs for
+them: the plugin id, source hash, and dependency hash. This release ships those
+inputs for the supported ids above instead of exposing a direct-source plugin
+definition.
+
+If an upstream plugin you want is missing from the supported id list, ask in
+the OpenClaw Discord. In practice, nix-openclaw can add upstream plugins when
+their published package is reproducible enough for Nix, for example when it
+ships bundled runtime dependencies or `npm-shrinkwrap.json`.
+
+### Different: nix-openclaw Tool Plugins
+
+`bundledPlugins` and `customPlugins` are not OpenClaw runtime plugins. They are
+nix-openclaw tool/skill bundles such as `discrawl`, `summarize`, and `peekaboo`.
+Use them for Nix flake plugins that add CLI tools or agent skills, not for
+OpenClaw npm or ClawHub runtime plugins.
 
 ---
 
@@ -472,11 +466,11 @@ All state lives in `~/.openclaw/`. Logs at `/tmp/openclaw/openclaw-gateway.log`.
 
 > **Note:** Complete the [Quick Start](#quick-start) first to get OpenClaw running. Then come back here to add plugins.
 
-These docs are for nix-openclaw plugins only. For OpenClaw runtime plugins such as Slack or Discord, use `programs.openclaw.runtimePlugins`; see [OpenClaw Plugins vs nix-openclaw Plugins](#openclaw-plugins-vs-nix-openclaw-plugins).
+These docs are for nix-openclaw tool plugins only. For OpenClaw runtime plugins such as Slack or Discord, use `programs.openclaw.runtimePlugins`; see [OpenClaw Runtime Plugins](#openclaw-runtime-plugins).
 
 ### Bundled plugins
 
-These ship with nix-openclaw. Catalog source of truth: `nix/modules/home-manager/openclaw/plugin-catalog.nix`.
+These ship with nix-openclaw.
 Toggle them in your config:
 
 ```nix

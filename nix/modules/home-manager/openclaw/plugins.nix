@@ -39,7 +39,7 @@ let
       needs = resolvedPlugin.needs or { };
       _noRuntimePlugins =
         if resolvedPlugin ? plugins then
-          throw "openclawPlugin.plugins is not supported in ${plugin.source}; OpenClaw runtime plugins use programs.openclaw.runtimePlugins with supported catalog ids"
+          throw "openclawPlugin.plugins is not supported in ${plugin.source}; OpenClaw runtime plugins use programs.openclaw.runtimePlugins with supported ids"
         else
           null;
     in
@@ -58,7 +58,7 @@ let
   resolvePlugin =
     plugin:
     if lib.hasPrefix "npm:" plugin.source then
-      throw "customPlugins.source = \"${plugin.source}\" is not supported for OpenClaw npm runtime plugins. Use programs.openclaw.runtimePlugins with a supported OpenClaw catalog id instead."
+      throw "customPlugins.source = \"${plugin.source}\" is not supported for OpenClaw npm runtime plugins. Use programs.openclaw.runtimePlugins with a supported OpenClaw plugin id instead."
     else
       resolveFlakePlugin plugin;
 
