@@ -736,10 +736,10 @@ Local proof for measured code commit:
 
 Remote proof:
 
-- Garnix on PR head `72936ff2383d31c0d0ef029acb36e2a44d6b6358`,
-  success, `2026-06-06T02:14:51Z` to `2026-06-06T02:16:19Z`:
-  flake evaluation `23s`, Darwin `ci` `55s`, selected package targets `5s`
-  to `17s`.
+- Garnix on PR head `06ebf991d41a81297c03b4152fd477b8a299c279`,
+  success, `2026-06-06T02:24:22Z` to `2026-06-06T02:25:09Z`:
+  flake evaluation `14s`, Darwin `ci` `33s`, selected package targets `5s`
+  to `14s`.
 - GitHub Actions did not create a `pull_request` run after pushing
   `72936ff2383d31c0d0ef029acb36e2a44d6b6358`; manually dispatched
   `27049891158` on `codex/npm-shrinkwrap-default`, success,
@@ -748,8 +748,10 @@ Remote proof:
   Because `72936ff2383d31c0d0ef029acb36e2a44d6b6358` is this audit-only
   documentation commit, the measured package/check graph is the
   `6ce39fb68fca65f092d13ecf9d1b7a267fe1bbd0` graph.
-- PR `mergeStateStatus` reported `DIRTY` after the successful remote checks;
-  resolve the stack/base state separately before merge.
+- PR `#100` base was retargeted to PR `#99`
+  (`codex/runtime-plugin-shrinkwrap-materialization`) after the proof run so
+  the review base matches the commit stack. GitHub then reported
+  `mergeStateStatus=CLEAN` at `06ebf991d41a81297c03b4152fd477b8a299c279`.
 
 ## Add A Run
 
