@@ -185,15 +185,21 @@ function stripAnsi(value) {
 }
 
 function parseNixJsonEvent(line) {
-  if (!line.startsWith("@nix ")) {
+  const trimmed = line.trim();
+  const json = trimmed.startsWith("@nix ") ? trimmed.slice(5) : trimmed;
+  if (!json.startsWith("{")) {
     return null;
   }
 
   try {
-    return JSON.parse(line.slice(5));
+    const event = JSON.parse(json);
+    if (event && typeof event.action === "string") {
+      return event;
+    }
   } catch {
     return null;
   }
+  return null;
 }
 
 function nixEventText(event, fallback) {
