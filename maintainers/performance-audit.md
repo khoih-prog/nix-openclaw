@@ -1340,6 +1340,28 @@ Local proof for measured commit:
 - `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-runtime-plugin-smokes-explicit --accept-flake-config --no-link .#checks.x86_64-linux.runtime-plugin-config-validity .#checks.x86_64-linux.runtime-plugin-gateway-smoke .#checks.aarch64-darwin.runtime-plugin-config-validity .#checks.aarch64-darwin.runtime-plugin-gateway-smoke`
 - `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-darwin-ci-runtime-plugin-smoke-split --accept-flake-config --option max-jobs 2 --no-link .#checks.aarch64-darwin.ci`
 
+Remote proof for measured commit:
+
+- `27053787114`, success, `pull_request`,
+  `2026-06-06T05:28:25Z` to `2026-06-06T05:30:52Z`.
+- PR status at measured head `358dd1562`: `CLEAN`; GitHub Actions Linux and
+  macOS, Garnix, Socket Security, and flake evaluation checks passed.
+- Compared to `27053416803` at `148be063`:
+  - Linux aggregate step: `120s -> 122s`; wall-clock did not improve on this
+    runner sample.
+  - Linux planned/built derivations: `29 -> 27`; the two removed derivations are
+    the runtime-plugin smoke package builds.
+  - Linux fetched/copy volume: `925 -> 923` planned paths, `936 -> 932 MiB`
+    download, `929 -> 927` copied paths.
+  - Linux Garnix copied names: `44 -> 42`; `slack-2026.6.1.tgz` and
+    `diagnostics-prometheus-2026.6.1.tgz` disappeared from default CI.
+  - macOS aggregate step: `103s -> 83s`; graph was unchanged, so count this as
+    runner/cache variance rather than a claimed split win.
+  - macOS HM activation step: `10s -> 6.19s`; graph unchanged, also
+    variance/cached-state influenced.
+- `rg -n 'openclaw-runtime-plugin-(slack|diagnostics-prometheus)|slack-2026\.6\.1\.tgz|diagnostics-prometheus-2026\.6\.1\.tgz' /tmp/nix-openclaw-ci-logs/run-27053787114.log`
+  returned no matches.
+
 ## Add A Run
 
 Use this shape and append below the previous run:
