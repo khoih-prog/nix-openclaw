@@ -50,6 +50,12 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
     default proof path, because skip-cached modes can stop proving the cold
     install/apply closure copy behavior users hit.
 - Closure and dependency drill-down:
+  - the CI wrapper captures Nix build-result JSON and uses the `drvPath` to
+    summarize realized build-closure hotspots with
+    `nix-store -qR --include-outputs` plus
+    `nix path-info --json --json-format 2 --size --closure-size`;
+  - this attributes the runner's copied/built closure to concrete store paths
+    without changing the proof target;
   - use `nix path-info --json --recursive --size --closure-size` for closure
     top offenders;
   - use `nix derivation show` for input-derivation fan-out, but parse both the
@@ -92,6 +98,7 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
 | `pr100-contextful-config-json-2026-06-06` | `6197f2f2f543` | `6ce39fb68fca` | track store references in generated OpenClaw config JSON | OpenClaw config improper-context warnings removed; package metrics unchanged |
 | `pr100-qmd-instance-split-2026-06-06` | `e9bf98d4c457` | `ff85f6bb3ad2` | split QMD module proof out of default instance CI | Linux aggregate 23.3% faster; QMD output copy/build removed from default CI |
 | `pr100-qmd-lazy-input-2026-06-06` | `3842f6732f0d` | `063d825de228` | stop forcing QMD while constructing default package/check attrs | QMD input fetch removed from default CI; no wall-time win on sampled runner |
+| `pr100-build-closure-meter-2026-06-06` | `7555c3bdb2cc` | `7ff4d4ddff82` | add CI build-closure hotspot attribution | no graph change; Linux/macOS CI now reports top closure paths |
 
 ## Runs
 
@@ -870,6 +877,83 @@ Remote proof:
   not counted as a Garnix wall-time win.
 - GitHub reported `mergeStateStatus=CLEAN` at
   `063d825de22814eb30a22e45978a43815d493ed1`.
+
+### `pr100-build-closure-meter-2026-06-06`
+
+- PR: `#100`
+- Base commit: `7555c3bdb2cc6a94174eb71fbd1074dc19da80a3`
+- Measured code commit: `7ff4d4ddff82db650123ec7a73a3bfaf685e081a`
+- Purpose:
+  - keep the existing aggregate CI proof unchanged;
+  - capture Nix build-result JSON from the metered `nix build`;
+  - use the captured `drvPath` to summarize concrete realized build-closure
+    hotspots in GitHub step summaries.
+- Rejected/fixed candidate:
+  - `2645b1149048600ca1b5e4a4b53dcf857d98b72e` recovered derivers from output
+    paths. Linux worked, but hosted macOS substituted the `ci` output without
+    deriver metadata and reported an empty closure. The measured commit fixes
+    this by using Nix build-result JSON.
+- Anti-regression review:
+  - The wrapper still runs the same installable and treats the real `nix build`
+    status as authoritative.
+  - The closure summary runs only after a successful build and is best-effort.
+  - The summary does not use `nix-fast-build --skip-cached`, does not skip
+    substitutions, and does not remove apply proof.
+
+| Metric | Baseline provenance | Baseline | Measured provenance | Measured | Change | Command |
+| --- | --- | ---: | --- | ---: | ---: | --- |
+| Metered aggregate build-result capture | `7555c3bd` wrapper | output path text only | `7ff4d4dd` wrapper | Nix build-result JSON with `drvPath` | added | `scripts/ci-nix-build.sh` |
+| Linux aggregate step | `27051028322` at `7555c3bd` | 122s | `27051461275` at `7ff4d4dd` | 118s | 3.3% faster, runner variance | `scripts/summarize-nix-build-log.mjs --github-log /tmp/nix-openclaw-ci-logs/run-<run>.log` |
+| Linux job duration | `27051028322` | 132s | `27051461275` | 125s | 5.3% faster, runner variance | `gh run view <run> --json jobs` |
+| Linux fetch/copy/build graph | `27051028322` | 926 fetched, 930 copied, 29 built | `27051461275` | 926 fetched, 930 copied, 29 built | unchanged | parser command above |
+| Linux build-closure summary | no closure summary in baseline | n/a | `27051461275` | 1,547 paths, 4.2 GiB summed NAR | added | closure section in GitHub log |
+| Linux top NAR paths | no closure summary in baseline | n/a | `27051461275` | gateway 959 MiB; `summarize` 430 MiB; QEMU VM test 390 MiB; GCC 264 MiB; Linux modules 126 MiB | added | same |
+| Linux top closure paths | no closure summary in baseline | n/a | `27051461275` | NixOS HM activation VM proof at 3.7 GiB closure | added | same |
+| macOS aggregate step | `27051028322` | 84s | `27051461275` | 115s | 36.9% slower, runner variance plus meter overhead | parser command above |
+| macOS job duration | `27051028322` | 147s | `27051461275` | 215s | 46.3% slower, runner variance plus meter overhead | `gh run view <run> --json jobs` |
+| macOS fetch/copy/build graph | `27051028322` | 226 fetched, 230 copied, 0 built | `27051461275` | 226 fetched, 230 copied, 0 built | unchanged | parser command above |
+| macOS build-closure summary | `2645b114` candidate | 0 paths due missing output deriver | `27051461275` at `7ff4d4dd` | 648 paths, 1.8 GiB summed NAR | fixed | closure section in GitHub log |
+| macOS top NAR paths | no valid closure summary in baseline | n/a | `27051461275` | gateway 670 MiB; app 212 MiB; `summarize` 156 MiB; Python 110 MiB; Node 24 81 MiB | added | same |
+| Garnix all checks | `7555c3bd` PR status | 25s | `7ff4d4dd` PR status | 42s | slower, cache/runner variance | `gh pr view 100 --json statusCheckRollup` |
+
+Interpretation:
+
+- This is an observability improvement, not a build-speed improvement.
+- The check graph did not change: fetched paths, copied paths, and built
+  derivations are stable against the prior green head.
+- The closure meter gives concrete next targets:
+  - Linux CI time is dominated by the default install/apply proof closure:
+    `openclaw-gateway`, `summarize`, QEMU VM-test runtime, GCC, Linux modules,
+    Python, and Node.
+  - The largest Linux closure umbrella is the NixOS Home Manager activation VM
+    proof at `3.7 GiB`; optimizing it would require a careful proof-design
+    decision, not simply deleting the check.
+  - macOS aggregate copy cost is dominated by the gateway/app payload and
+    supporting runtime tools.
+
+Local proof for measured commit:
+
+- `node --check scripts/summarize-nix-build-closure.mjs && bash -n scripts/ci-nix-build.sh && git diff --check`
+- `tmp=$(mktemp /tmp/nix-openclaw-json-output.XXXXXX); nix build --accept-flake-config --json --no-link .#checks.aarch64-darwin.ci > "$tmp"; scripts/summarize-nix-build-closure.mjs --label json-darwin-ci --limit 5 "$tmp"`
+- `RUNNER_TEMP=/tmp NIX_METER_BUILD_CLOSURE=1 scripts/ci-nix-build.sh local-darwin-ci-json-closure-probe --accept-flake-config --no-link .#checks.aarch64-darwin.ci`
+- `RUNNER_TEMP=/tmp NIX_METER_BUILD_CLOSURE=1 scripts/ci-nix-build.sh local-linux-ci-json-closure-probe --accept-flake-config --no-link .#checks.x86_64-linux.ci`
+
+Remote proof:
+
+- GitHub Actions `27051332716`, `pull_request`, success on
+  `2645b1149048600ca1b5e4a4b53dcf857d98b72e`, proved Linux closure attribution
+  but exposed the hosted macOS deriver gap.
+- GitHub Actions `27051461275`, `pull_request`, success on
+  `7ff4d4ddff82db650123ec7a73a3bfaf685e081a`.
+- GitHub Actions jobs for `27051461275`: Linux `2m05s`, macOS `3m35s`.
+- Parser summary for `27051461275`: Linux aggregate `118s`, 926 fetched paths,
+  936 MiB download, 4.2 GiB unpacked, 29 planned/built derivations; macOS
+  aggregate `115s`, 226 fetched paths, 286 MiB download, 1.8 GiB unpacked,
+  0 built derivations.
+- Garnix on PR head `7ff4d4ddff82db650123ec7a73a3bfaf685e081a`, success,
+  `2026-06-06T03:34:18Z` to `2026-06-06T03:35:00Z`.
+- GitHub reported `mergeStateStatus=CLEAN` at
+  `7ff4d4ddff82db650123ec7a73a3bfaf685e081a`.
 
 ## Add A Run
 
