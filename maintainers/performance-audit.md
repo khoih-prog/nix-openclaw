@@ -36,6 +36,13 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
     timestamps, so it is not enough by itself for phase-duration attribution;
   - `nix-output-monitor` / `nom` is the best local human display for this
     stream, but CI should keep machine-readable summaries and raw logs.
+- Active-build drill-down:
+  - on Determinate Nix `3.14.0+`, `nix ps --json` exposes in-flight build
+    derivations and child process trees:
+    https://determinate.systems/blog/changelog-determinate-nix-3140/;
+  - use it as an optional sampler for long local/macOS builds, not as a required
+    CI metric while Linux CI still uses upstream Nix through
+    `cachix/install-nix-action`.
 - Cache/eval probes:
   - use `nix-eval-jobs --check-cache-status` for explicit local/cached/not-built
     attribution across many attrs;
@@ -50,8 +57,19 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
     path appears unexpectedly or a closure/derivation changes.
 - Deep evaluator profiling:
   - `NIX_SHOW_STATS=1` belongs in CI summaries;
-  - `trace-function-calls` flamegraphs are local-only drill-down because they
-    are too noisy for PR proof unless a specific evaluator hotspot is suspected.
+  - use Nix `2.34+` eval profiles for local flamegraph drill-down:
+    `--option eval-profiler flamegraph --option eval-profile-file <path>`;
+    https://nix.dev/manual/nix/2.34/advanced-topics/eval-profiler.html
+  - keep `trace-function-calls` as a fallback only. It is noisier than the eval
+    profiler and not appropriate for default PR proof.
+- Low-value for this repo:
+  - `nix build --dry-run --json` only emits result metadata (`drvPath` and
+    `outputs`); fetch/build plans still arrive on stderr, so it does not replace
+    the timestamped stderr meter;
+  - newer closure explorers such as `nix-deps` are useful orientation tools, but
+    remain interactive/cache.nixos.org-oriented and lack the stable JSON output
+    needed for this PR's provenance ledger:
+    https://github.com/manelinux/nix-deps
 
 ## Run Index
 
@@ -67,6 +85,7 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
 | `pr100-nix-eval-telemetry-2026-06-06` | `a05e9981c943` | `4d4ec0996548` | replace rejected cache action with Nix eval and phase telemetry | no graph change; eval cost is now visible in CI summaries |
 | `pr100-on99-latest-restack-2026-06-06` | `c31825060717` | `6e87b41a28df` | restack PR #100 on latest PR #99 runtime-plugin source-lock head | package metrics stable; first remote run slower from cache miss/builds |
 | `pr100-macos-max-jobs-2-2026-06-06` | `6e87b41a28df` | `debf0c1ce94c` | test hosted macOS Nix concurrency after npm shrinkwrap removes source gateway build | accepted; warm run fast, but speedup is cache-influenced |
+| `pr100-contextful-config-json-2026-06-06` | `6197f2f2f543` | `6ce39fb68fca` | track store references in generated OpenClaw config JSON | OpenClaw config improper-context warnings removed; package metrics unchanged |
 
 ## Runs
 
@@ -658,6 +677,59 @@ Remote proof:
 - PR checks at `debf0c1ce94c06585c059e5a0cf5af38127ec6d3`: GitHub
   Actions Linux/macOS pass; Garnix flake evaluation, Darwin `ci`, and selected
   package targets pass; Socket checks pass.
+
+### `pr100-contextful-config-json-2026-06-06`
+
+- PR: `#100`
+- Base commit: `6197f2f2f543952d0c11f8266490f8c2fa6697e1`
+- Measured code commit: `6ce39fb68fca65f092d13ecf9d1b7a267fe1bbd0`
+- Purpose:
+  - preserve Nix string context when rendering generated OpenClaw JSON config;
+  - keep Home Manager activation source-backed while preserving eval-time config
+    text for checks;
+  - normalize plugin-provided skill directories as explicit Nix store paths.
+- Package outputs:
+  - measured gateway:
+    `/nix/store/6q5fc2xg5ialr6a6ax1b3vf6162k4qv9-openclaw-gateway-2026.6.1`
+  - measured `openclaw`:
+    `/nix/store/ndybc97fhchy2mxw1mplgk8brqmfcc2v-openclaw-2026.6.1`
+
+| Metric | Baseline provenance | Baseline | Measured provenance | Measured | Change | Command |
+| --- | --- | ---: | --- | ---: | ---: | --- |
+| Darwin improper-context warnings | `6197f2f2` eval stderr | 4 | `6ce39fb6` eval stderr | 1 | 75.0% fewer | `nix eval --accept-flake-config --option eval-cache false --raw .#checks.aarch64-darwin.ci.drvPath` |
+| Linux improper-context warnings | `6197f2f2` eval stderr | 6 | `6ce39fb6` eval stderr | 1 | 83.3% fewer | same for `.#checks.x86_64-linux.ci.drvPath` |
+| Generated OpenClaw config improper-context warnings, Darwin | `6197f2f2` eval stderr | 3 | `6ce39fb6` eval stderr | 0 | removed | same |
+| Generated OpenClaw config improper-context warnings, Linux | `6197f2f2` eval stderr | 5 | `6ce39fb6` eval stderr | 0 | removed | same |
+| Darwin aggregate direct input derivations | `6197f2f2` `ci.drvPath` | 14 | `6ce39fb6` `ci.drvPath` | 14 | unchanged | `nix derivation show "$drv" \| jq '.derivations[] \| .inputs.drvs \| length'` |
+| Linux aggregate direct input derivations | `6197f2f2` `ci.drvPath` | 14 | `6ce39fb6` `ci.drvPath` | 14 | unchanged | same |
+| Gateway closure | prior optimized graph `6e87b41a`/`6197f2f2` equivalent | 904,983,184 B | `6ce39fb6` gateway path above | 904,983,184 B | unchanged | `nix path-info -S "$gateway"` |
+| `openclaw` closure | prior optimized graph `6e87b41a`/`6197f2f2` equivalent | 1,846,536,320 B | `6ce39fb6` `openclaw` path above | 1,846,536,320 B | unchanged | `nix path-info -S "$openclaw"` |
+| Gateway package manifests | prior optimized graph | 584 | `6ce39fb6` gateway path above | 584 | unchanged | `find "$gateway/lib/openclaw" -name package.json \| wc -l` |
+| Files under `lib/openclaw` | prior optimized graph | 34,054 | `6ce39fb6` gateway path above | 34,054 | unchanged | `find "$gateway/lib/openclaw" -type f \| wc -l` |
+
+Rejected simplification:
+
+- Replacing generated config derivations with `builtins.toFile` would have
+  removed tiny JSON derivations, but Nix rejected config files that reference
+  derivation outputs such as runtime-plugin packages. Keep `pkgs.writeText`.
+
+Local proof for measured code commit:
+
+- `nix eval --accept-flake-config --json .#checks.aarch64-darwin --apply 'attrs: builtins.attrNames attrs'`
+- `nix eval --accept-flake-config --json .#checks.x86_64-linux --apply 'attrs: builtins.attrNames attrs'`
+- `nix build --accept-flake-config --no-link .#checks.aarch64-darwin.config-validity`
+- `nix build --accept-flake-config --no-link .#checks.aarch64-darwin.default-instance`
+- `nix build --accept-flake-config --no-link .#checks.x86_64-linux.default-instance`
+- `nix build --accept-flake-config --no-link .#checks.aarch64-darwin.hm-activation-macos-package`
+- `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-darwin-ci --accept-flake-config --no-link .#checks.aarch64-darwin.ci`
+- `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-linux-ci --accept-flake-config --no-link .#checks.x86_64-linux.ci`
+- `git diff --check`
+- `bash -n scripts/ci-nix-build.sh scripts/hm-activation-macos.sh scripts/update-pins.sh nix/scripts/check-package-contents.sh nix/scripts/openclaw-gateway-npm-install.sh`
+- `node --check scripts/summarize-nix-build-log.mjs`
+
+Remote proof:
+
+- Pending; run after pushing this audit commit.
 
 ## Add A Run
 
