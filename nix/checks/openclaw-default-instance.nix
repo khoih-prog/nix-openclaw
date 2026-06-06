@@ -863,7 +863,7 @@ stdenv.mkDerivation {
       "openclaw-default-instance";
   version = "1";
   dontUnpack = true;
-  # Evaluation alone missed installPhase regressions in the QMD wrapper.
+  # Evaluation alone missed installPhase regressions in helper scripts.
   nativeBuildInputs =
     lib.optionals includePluginChecks [
       nodejs_22
