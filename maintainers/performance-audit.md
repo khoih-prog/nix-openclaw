@@ -52,7 +52,9 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
 - Closure and dependency drill-down:
   - use `nix path-info --json --recursive --size --closure-size` for closure
     top offenders;
-  - use `nix derivation show` for input-derivation fan-out;
+  - use `nix derivation show` for input-derivation fan-out, but parse both the
+    older `inputDrvs`/`inputSrcs` shape and the Determinate Nix `3.21.0`
+    `derivations.<drv>.inputs.{drvs,srcs}` shape;
   - use `nix why-depends`, `nix-diff`, `nix-tree`, `nix-du`, and `nvd` when a
     path appears unexpectedly or a closure/derivation changes.
 - Deep evaluator profiling:
@@ -60,6 +62,8 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
   - use Nix `2.34+` eval profiles for local flamegraph drill-down:
     `--option eval-profiler flamegraph --option eval-profile-file <path>`;
     https://nix.dev/manual/nix/2.34/advanced-topics/eval-profiler.html
+  - verified locally on `.checks.aarch64-darwin.ci`: the profile is useful for
+    hot evaluation paths, but too large/noisy for every PR CI run;
   - keep `trace-function-calls` as a fallback only. It is noisier than the eval
     profiler and not appropriate for default PR proof.
 - Low-value for this repo:
@@ -86,6 +90,7 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
 | `pr100-on99-latest-restack-2026-06-06` | `c31825060717` | `6e87b41a28df` | restack PR #100 on latest PR #99 runtime-plugin source-lock head | package metrics stable; first remote run slower from cache miss/builds |
 | `pr100-macos-max-jobs-2-2026-06-06` | `6e87b41a28df` | `debf0c1ce94c` | test hosted macOS Nix concurrency after npm shrinkwrap removes source gateway build | accepted; warm run fast, but speedup is cache-influenced |
 | `pr100-contextful-config-json-2026-06-06` | `6197f2f2f543` | `6ce39fb68fca` | track store references in generated OpenClaw config JSON | OpenClaw config improper-context warnings removed; package metrics unchanged |
+| `pr100-qmd-instance-split-2026-06-06` | `e9bf98d4c457` | `ff85f6bb3ad2` | split QMD module proof out of default instance CI | Linux aggregate 23.3% faster; QMD output copy/build removed from default CI |
 
 ## Runs
 
@@ -752,6 +757,61 @@ Remote proof:
   (`codex/runtime-plugin-shrinkwrap-materialization`) after the proof run so
   the review base matches the commit stack. GitHub then reported
   `mergeStateStatus=CLEAN` at `06ebf991d41a81297c03b4152fd477b8a299c279`.
+
+### `pr100-qmd-instance-split-2026-06-06`
+
+- PR: `#100`
+- Measured commit: `ff85f6bb3ad264a75c0eafb7a9dac0e22871288c`
+- Base commit: `e9bf98d4c4571bf07c47723bf3bde2cf139bc0a6`
+- Purpose:
+  - keep default CI focused on default package/config/apply proof;
+  - preserve explicit QMD proof through `qmd-instance` and `qmd-runtime`;
+  - remove the QMD package output copy/build from the default aggregate.
+
+| Metric | Baseline provenance | Baseline | Measured provenance | Measured | Change | Command |
+| --- | --- | ---: | --- | ---: | ---: | --- |
+| Linux `default-instance` direct QMD inputs | `e9bf98d4` cache-status JSONL | 1 | `ff85f6bb` cache-status JSONL | 0 | removed | `nix-eval-jobs --flake .#checks.x86_64-linux --workers 1 --check-cache-status --show-input-drvs` |
+| Darwin `default-instance` direct QMD inputs | `e9bf98d4` cache-status JSONL | 1 | `ff85f6bb` cache-status JSONL | 0 | removed | same for `.#checks.aarch64-darwin` |
+| Explicit QMD check attrs, Linux | `e9bf98d4` check attr names | 1 | `ff85f6bb` check attr names | 2 | `qmd-instance` added | `nix eval --accept-flake-config --json .#checks.x86_64-linux --apply 'attrs: builtins.attrNames attrs'` |
+| Explicit QMD check attrs, Darwin | `e9bf98d4` check attr names | 1 | `ff85f6bb` check attr names | 2 | `qmd-instance` added | same for `.#checks.aarch64-darwin` |
+| Linux QMD output copy/build log lines | `27050280272` at `e9bf98d4` | 4 | `27050639529` at `ff85f6bb` | 0 | removed | `rg -n 'openclaw-qmd\|qmd-[0-9].*\|copying path .*qmd' /tmp/nix-openclaw-ci-logs/run-<run>.log \| rg -v 'github:tobi/qmd'` |
+| Linux aggregate planned builds | `27050280272` | 30 | `27050639529` | 29 | 3.3% fewer | `scripts/summarize-nix-build-log.mjs --github-log /tmp/nix-openclaw-ci-logs/run-<run>.log` |
+| Linux aggregate copied paths | `27050280272` | 934 | `27050639529` | 931 | 0.3% fewer | same |
+| Linux aggregate fetch plan, download | `27050280272` | 1.2 GiB | `27050639529` | 936 MiB | about 22% smaller | same |
+| Linux aggregate fetch plan, unpacked | `27050280272` | 5.2 GiB | `27050639529` | 4.2 GiB | about 19% smaller | same |
+| Linux aggregate step | `27050280272` | 129s | `27050639529` | 99s | 23.3% faster | same |
+| Linux job duration | `27050280272` | 140s | `27050639529` | 107s | 23.6% faster | `gh run view <run> --json jobs` |
+| macOS aggregate step | `27050280272` | 85s | `27050639529` | 106s | 24.7% slower, runner variance | parser command above |
+| macOS job duration | `27050280272` | 151s | `27050639529` | 173s | 14.6% slower, runner variance | `gh run view <run> --json jobs` |
+| Garnix all checks | `e9bf98d4` PR status | 58s | `ff85f6bb` PR status | 48s | 17.2% faster, cache-influenced | `gh pr view 100 --json statusCheckRollup` |
+
+Local proof for measured commit:
+
+- `nix eval --accept-flake-config --json .#checks.x86_64-linux --apply 'attrs: builtins.attrNames attrs'`
+- `nix eval --accept-flake-config --json .#checks.aarch64-darwin --apply 'attrs: builtins.attrNames attrs'`
+- `nix run --accept-flake-config nixpkgs#nix-eval-jobs -- --flake .#checks.x86_64-linux --workers 1 --check-cache-status --show-input-drvs`
+- `nix run --accept-flake-config nixpkgs#nix-eval-jobs -- --flake .#checks.aarch64-darwin --workers 1 --check-cache-status --show-input-drvs`
+- `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-darwin-ci-qmd-split --accept-flake-config --no-link .#checks.aarch64-darwin.ci .#checks.aarch64-darwin.qmd-instance .#checks.aarch64-darwin.qmd-runtime`
+- `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-linux-ci-qmd-split --accept-flake-config --no-link .#checks.x86_64-linux.ci .#checks.x86_64-linux.qmd-instance .#checks.x86_64-linux.qmd-runtime`
+- `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-darwin-ci-qmd-split-ci-only --accept-flake-config --no-link .#checks.aarch64-darwin.ci`
+- `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-linux-ci-qmd-split-ci-only --accept-flake-config --no-link .#checks.x86_64-linux.ci`
+- `git diff --check`
+
+Remote proof:
+
+- GitHub Actions `27050639529`, `pull_request`, success on
+  `ff85f6bb3ad264a75c0eafb7a9dac0e22871288c`.
+- GitHub Actions jobs: Linux `1m47s`, macOS `2m53s`.
+- Parser summary: Linux aggregate `99s`, 926 fetched paths, 936 MiB download,
+  4.2 GiB unpacked, 29 planned/built derivations; macOS aggregate `106s`, 226
+  fetched paths, 286 MiB download, 1.8 GiB unpacked.
+- `rg` over the GitHub log shows only the QMD flake input unpack remains; QMD
+  package output copy and `openclaw-qmd.drv` build lines are gone from default
+  CI.
+- Garnix on PR head `ff85f6bb3ad264a75c0eafb7a9dac0e22871288c`, success,
+  `2026-06-06T02:55:19Z` to `2026-06-06T02:56:07Z`.
+- GitHub reported `mergeStateStatus=CLEAN` at
+  `ff85f6bb3ad264a75c0eafb7a9dac0e22871288c`.
 
 ## Add A Run
 
