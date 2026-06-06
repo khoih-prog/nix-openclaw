@@ -103,6 +103,7 @@ nixpkgs `16c7794d0a28b5a37904d55bcca36003b9109aaa`.
 | `pr100-qmd-lazy-input-2026-06-06` | `3842f6732f0d` | `063d825de228` | stop forcing QMD while constructing default package/check attrs | QMD input fetch removed from default CI; no wall-time win on sampled runner |
 | `pr100-build-closure-meter-2026-06-06` | `7555c3bdb2cc` | `7ff4d4ddff82` | add CI build-closure hotspot attribution | no graph change; Linux/macOS CI now reports top closure paths |
 | `pr100-build-analysis-tooling-2026-06-06` | `76c45773853d` | `c99051b5dae3` | add optional `nix-eval-jobs` cache-status summarizer after current tooling survey | no graph change; attr-level cache probes available without default CI overhead |
+| `pr100-structured-nix-log-meter-2026-06-06` | `c99051b5dae3` | `4998f2759d99` | parse optional Nix internal-json build activity events | no graph change; opt-in runs can report structured activity spans |
 
 ## Runs
 
@@ -1007,6 +1008,59 @@ Local proof for measured commit:
 - `scripts/summarize-nix-eval-jobs.mjs --label local-linux-cache-probe --limit 6 /tmp/nix-openclaw-eval-jobs-linux.e3WWib.jsonl`
 - `scripts/summarize-nix-eval-jobs.mjs --label local-darwin-cache-probe --limit 6 /tmp/nix-openclaw-eval-jobs-darwin.Z0KqsY.jsonl`
 - `git diff --check`
+
+### `pr100-structured-nix-log-meter-2026-06-06`
+
+- PR: `#100`
+- Base commit: `c99051b5dae377748ffa4b12705881bca696be07`
+- Measured code commit: `4998f2759d993d1e1402d3cf088df4899b79e7f3`
+- Purpose:
+  - improve the optional build-time attribution path from text phase hints to
+    structured Nix activity events;
+  - keep default CI behavior unchanged until a remote run proves the log-noise
+    tradeoff is worth it;
+  - preserve existing human-log summaries.
+- Tooling sources checked:
+  - Nix internal-json logging and build-result JSON expose structured event and
+    top-level timing data:
+    https://nix.dev/manual/nix/stable/command-ref/new-cli/nix3-log and
+    https://nix.dev/manual/nix/2.34/protocols/json/build-result.html
+  - `json-log-path` can capture internal-json sidecars, but lacks timestamps on
+    its own:
+    https://manpages.debian.org/unstable/nix-bin/nix.conf.5.en.html
+  - `nix-output-monitor` recommends internal-json input for better Nix output:
+    https://github.com/maralorn/nix-output-monitor
+  - newer package closure explorers (`nix-deps`, `nixard`) are useful for
+    user/profile closure impact, but are not CI build-time ledgers for this PR:
+    https://github.com/manelinux/nix-deps and
+    https://github.com/manelinux/nixard
+  - `nix-log-check` is useful for binary-cache failure prediction, but not for
+    timing attribution:
+    https://github.com/dramforever/nix-log-check
+
+| Metric | Baseline provenance | Baseline | Measured provenance | Measured | Change | Command |
+| --- | --- | ---: | --- | ---: | ---: | --- |
+| Default CI installable | `c99051b5` workflow | `.ci` aggregate | `4998f275` workflow | unchanged | no graph change | `git diff c99051b5..4998f275 -- .github/workflows flake.nix` |
+| Internal-json event summary | `c99051b5` log summarizer | absent | `4998f275` log summarizer | present | added opt-in structured activity meter | `scripts/summarize-nix-build-log.mjs --label local-internal-json-config-validity /tmp/nix-openclaw-ci-meter/local-internal-json-config-validity.nix.log` |
+| Timestamped internal-json probe | no structured parser | n/a | `4998f275` dirty worktree probe | 9s, 140 events, 15 starts, 15 stops, 109 results | recorded | `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-internal-json-config-validity --accept-flake-config --log-format internal-json --rebuild --no-link .#checks.aarch64-darwin.config-validity` |
+| Top structured spans in probe | no structured parser | n/a | same probe | `Builds`/`CopyPaths`/`Realise` umbrella 8s; config-validity `Build` 7s, last phase `fixupPhase` | recorded | parser command above |
+| Existing remote log parser regression | latest remote log `27051998719` | 4 metered steps | `4998f275` parser replay | 4 metered steps, same fetch/build/copy counts | unchanged | `scripts/summarize-nix-build-log.mjs --github-log /tmp/nix-openclaw-ci-logs/run-27051998719.log` |
+
+Interpretation:
+
+- This is an analysis improvement, not a build-speed improvement.
+- The useful SOTA path for this repo is native Nix internal-json events plus the
+  existing timestamp sidecar, because it can attribute Nix activity spans without
+  depending only on English stderr text.
+- Do not flip CI to internal-json by default until a remote aggregate run proves
+  the summary improves attribution enough to justify noisier raw logs.
+
+Local proof for measured commit:
+
+- `node --check scripts/summarize-nix-build-log.mjs`
+- `scripts/summarize-nix-build-log.mjs --label local-internal-json-config-validity /tmp/nix-openclaw-ci-meter/local-internal-json-config-validity.nix.log`
+- `scripts/summarize-nix-build-log.mjs --github-log /tmp/nix-openclaw-ci-logs/run-27051998719.log`
+- `RUNNER_TEMP=/tmp scripts/ci-nix-build.sh local-internal-json-config-validity --accept-flake-config --log-format internal-json --rebuild --no-link .#checks.aarch64-darwin.config-validity`
 
 ## Add A Run
 
