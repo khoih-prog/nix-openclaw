@@ -63,14 +63,51 @@ function run(command, args, options = {}) {
   return result.stdout;
 }
 
-function storePathsFromFile(path) {
+function buildResultsFromFile(path) {
   const text = fs.readFileSync(path, "utf8");
-  return unique(
-    text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => /^\/nix\/store\/[0-9a-z]{32}-/.test(line)),
-  );
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { outputs: [], derivers: [] };
+  }
+
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    return buildResultsFromJson(trimmed);
+  }
+
+  return {
+    outputs: unique(
+      text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => /^\/nix\/store\/[0-9a-z]{32}-/.test(line)),
+    ),
+    derivers: [],
+  };
+}
+
+function buildResultsFromJson(text) {
+  const parsed = JSON.parse(text);
+  const results = Array.isArray(parsed) ? parsed : [parsed];
+  const outputs = [];
+  const derivers = [];
+
+  for (const result of results) {
+    if (typeof result?.drvPath === "string" && result.drvPath.endsWith(".drv")) {
+      derivers.push(result.drvPath);
+    }
+    if (result?.outputs && typeof result.outputs === "object") {
+      for (const output of Object.values(result.outputs)) {
+        if (typeof output === "string" && /^\/nix\/store\/[0-9a-z]{32}-/.test(output)) {
+          outputs.push(output);
+        }
+      }
+    }
+  }
+
+  return {
+    outputs: unique(outputs),
+    derivers: unique(derivers),
+  };
 }
 
 function unique(values) {
@@ -186,19 +223,19 @@ function formatCount(value) {
 
 try {
   const args = parseArgs(process.argv.slice(2));
-  const outputs = storePathsFromFile(args.outputsFile);
-  if (outputs.length === 0) {
+  const captured = buildResultsFromFile(args.outputsFile);
+  if (captured.outputs.length === 0 && captured.derivers.length === 0) {
     process.stdout.write(`### Nix Build Closure: ${args.label}\n\nNo output paths were captured.\n`);
     process.exit(0);
   }
 
-  const derivers = deriversFor(outputs);
+  const derivers = unique([...captured.derivers, ...deriversFor(captured.outputs)]);
   const closurePaths = buildClosurePaths(derivers);
   const entries = pathInfo(closurePaths);
   const markdown = render({
     label: args.label,
     limit: args.limit,
-    outputs,
+    outputs: captured.outputs,
     derivers,
     closurePaths,
     entries,

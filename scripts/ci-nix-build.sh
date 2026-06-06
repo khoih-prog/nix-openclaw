@@ -20,7 +20,7 @@ mkdir -p "$log_dir"
 : > "$outputs_path"
 
 build_args=("$@")
-if [[ "${NIX_METER_PRINT_OUT_PATHS:-1}" != "0" ]]; then
+if [[ "${NIX_METER_CAPTURE_OUTPUTS:-${NIX_METER_PRINT_OUT_PATHS:-1}}" != "0" ]]; then
   has_print_out_paths=0
   has_json_output=0
   for arg in "${build_args[@]}"; do
@@ -28,7 +28,7 @@ if [[ "${NIX_METER_PRINT_OUT_PATHS:-1}" != "0" ]]; then
     [[ "$arg" == "--json" ]] && has_json_output=1
   done
   if [[ "$has_print_out_paths" -eq 0 && "$has_json_output" -eq 0 ]]; then
-    build_args+=("--print-out-paths")
+    build_args+=("--json")
   fi
 fi
 
