@@ -15,14 +15,15 @@ safe_label=$(printf '%s' "$label" | tr -c 'A-Za-z0-9_.-' '-')
 log_path="$log_dir/${safe_label}.nix.log"
 json_log_path="$log_dir/${safe_label}.nix.jsonl"
 outputs_path="$log_dir/${safe_label}.outputs"
+json_log_enabled="${NIX_METER_JSON_LOG:-0}"
 
 mkdir -p "$log_dir"
 : > "$log_path"
-: > "$json_log_path"
 : > "$outputs_path"
 
 build_args=("$@")
-if [[ "${NIX_METER_JSON_LOG:-1}" != "0" ]]; then
+if [[ "$json_log_enabled" != "0" ]]; then
+  : > "$json_log_path"
   has_json_log_path=0
   for ((i = 0; i < ${#build_args[@]}; i += 1)); do
     if [[ "${build_args[$i]}" == "--option" && "${build_args[$((i + 1))]:-}" == "json-log-path" ]]; then
@@ -46,7 +47,11 @@ if [[ "${NIX_METER_CAPTURE_OUTPUTS:-${NIX_METER_PRINT_OUT_PATHS:-1}}" != "0" ]];
 fi
 
 start_epoch=$(date +%s)
-echo "nix-meter: start label=$label log=$log_path json-log=$json_log_path"
+if [[ "$json_log_enabled" != "0" ]]; then
+  echo "nix-meter: start label=$label log=$log_path json-log=$json_log_path"
+else
+  echo "nix-meter: start label=$label log=$log_path"
+fi
 
 set +e
 env NIX_SHOW_STATS="${NIX_SHOW_STATS:-1}" nix build "${build_args[@]}" > >(tee "$outputs_path") 2> >(
@@ -74,7 +79,7 @@ echo "nix-meter: end label=$label status=$status seconds=$elapsed"
   --seconds "$elapsed" \
   "$log_path" || true
 
-if [[ "${NIX_METER_JSON_LOG:-1}" != "0" && -s "$json_log_path" ]]; then
+if [[ "$json_log_enabled" != "0" && -s "$json_log_path" ]]; then
   "$repo_root/scripts/summarize-nix-build-log.mjs" \
     --label "$label-structured" \
     "$json_log_path" || true
